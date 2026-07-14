@@ -1,0 +1,3008 @@
+[
+  {
+    "n": "ASPILLA-KNIGHT, RUTH",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 11351.04,
+    "ma": 11351,
+    "d": "2022-01-21"
+  },
+  {
+    "n": "MENDOZA, CELESTE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 24043.2,
+    "ma": 923.75,
+    "d": "2022-02-22"
+  },
+  {
+    "n": "MENDOZA, CELESTE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 23043.2,
+    "ma": 923.75,
+    "d": "2022-02-22"
+  },
+  {
+    "n": "PILOTOS, MA. JUNAS J.",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 49824.78,
+    "ma": 1108.5,
+    "d": "2022-03-04"
+  },
+  {
+    "n": "CORDOVA, GENALYN MANDY",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 11969.46,
+    "ma": 923.75,
+    "d": "2022-03-07"
+  },
+  {
+    "n": "PALAPAR, JULITA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 27055.199999999997,
+    "ma": 886.8,
+    "d": "2022-04-05"
+  },
+  {
+    "n": "LIMBAGA, JENNIFER",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 2768.16,
+    "ma": 833.33,
+    "d": "2022-04-25"
+  },
+  {
+    "n": "LIMBAGA, JENNIFER",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 2752.16,
+    "ma": 833.33,
+    "d": "2022-04-25"
+  },
+  {
+    "n": "KOEBE, DAISY M.",
+    "t": "GL-REGULAR",
+    "p": 60000,
+    "tm": 60,
+    "tp": 49901.5,
+    "ma": 1000,
+    "d": "2022-05-19"
+  },
+  {
+    "n": "KOEBE, DAISY M.",
+    "t": "GL-REGULAR",
+    "p": 60000,
+    "tm": 60,
+    "tp": 49901.5,
+    "ma": 1000,
+    "d": "2022-05-19"
+  },
+  {
+    "n": "ISRAEL, ELVIRA",
+    "t": "FE-PRIME",
+    "p": 640000,
+    "tm": 42,
+    "tp": 323333.14,
+    "ma": 13452.38,
+    "d": "2022-05-29"
+  },
+  {
+    "n": "CEQUINA, MA. ESTRELLA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 73430,
+    "ma": 3547.2,
+    "d": "2022-05-30"
+  },
+  {
+    "n": "CENABRE, ZENAS",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 24,
+    "tp": 56000,
+    "ma": 2500,
+    "d": "2022-06-15"
+  },
+  {
+    "n": "YU, FEBBY GRACE",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 36080,
+    "ma": 1000,
+    "d": "2022-06-20"
+  },
+  {
+    "n": "PIEZAS, ERMELINDA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 36,
+    "tp": 8104.76,
+    "ma": 1309,
+    "d": "2022-06-28"
+  },
+  {
+    "n": "ALVAR, VERGINIA/MARYLOU",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 18907.8,
+    "ma": 886.8,
+    "d": "2022-06-30"
+  },
+  {
+    "n": "PARAN, GINA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 107575.2,
+    "ma": 3547.2,
+    "d": "2022-06-30"
+  },
+  {
+    "n": "CUADERO, EVANGELINE",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 128150,
+    "ma": 11824,
+    "d": "2022-07-06"
+  },
+  {
+    "n": "LIBANTE, ANTONIA/MARIVEL LOR SANCHEZ",
+    "t": "GL-REGULAR",
+    "p": 120000,
+    "tm": 42,
+    "tp": 46285,
+    "ma": 2857.14,
+    "d": "2022-07-08"
+  },
+  {
+    "n": "EBUA, LILIA",
+    "t": "GL-REGULAR",
+    "p": 120000,
+    "tm": 42,
+    "tp": 35655.14,
+    "ma": 2857.14,
+    "d": "2022-07-16"
+  },
+  {
+    "n": "MARABILES, MA. MARLENE",
+    "t": "FE-PREMIUM",
+    "p": 600000,
+    "tm": 60,
+    "tp": 309085,
+    "ma": 11085,
+    "d": "2022-07-27"
+  },
+  {
+    "n": "APLACADOR, ELENO",
+    "t": "LL-PRIME",
+    "p": 56000,
+    "tm": 42,
+    "tp": 49960,
+    "ma": 1280,
+    "d": "2022-08-06"
+  },
+  {
+    "n": "MUGA, TEODORICO",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 42,
+    "tp": 139528.49,
+    "ma": 5976.19,
+    "d": "2022-08-08"
+  },
+  {
+    "n": "HIBALAY, MARK IAN",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 176777,
+    "ma": 3547.75,
+    "d": "2022-08-09"
+  },
+  {
+    "n": "NACUA, OLYMPIA",
+    "t": "GL-REGULAR",
+    "p": 120000,
+    "tm": 60,
+    "tp": 24354,
+    "ma": 2217,
+    "d": "2022-08-12"
+  },
+  {
+    "n": "APLACADOR, PEDRO JR.",
+    "t": "LL-PRIME",
+    "p": 56000,
+    "tm": 42,
+    "tp": 49960,
+    "ma": 1280,
+    "d": "2022-08-16"
+  },
+  {
+    "n": "LUMAYOG, ROSANA",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 176648,
+    "ma": 11824,
+    "d": "2022-08-22"
+  },
+  {
+    "n": "MEDIDAS, NILO",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 319644,
+    "ma": 11824,
+    "d": "2022-08-31"
+  },
+  {
+    "n": "CUADERO, CAROLINE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 42,
+    "tp": 12505,
+    "ma": 933.33,
+    "d": "2022-09-01"
+  },
+  {
+    "n": "CLEOFE, CRISTINA",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 42,
+    "tp": 480990,
+    "ma": 15238,
+    "d": "2022-09-12"
+  },
+  {
+    "n": "LUENGO, MARIANO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 24,
+    "tp": 27000,
+    "ma": 1000,
+    "d": "2022-09-16"
+  },
+  {
+    "n": "AMANDORON, CASSANDRA EILLEN",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 42,
+    "tp": 18300,
+    "ma": 4571.43,
+    "d": "2022-09-30"
+  },
+  {
+    "n": "GOLIS, JUNA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 42,
+    "tp": 4800,
+    "ma": 833.33,
+    "d": "2022-09-30"
+  },
+  {
+    "n": "BALOGO, ELVIE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 36,
+    "tp": 46900,
+    "ma": 1333.33,
+    "d": "2022-10-01"
+  },
+  {
+    "n": "ANDAL, OLIVER",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 192000,
+    "ma": 0,
+    "d": "2022-10-28"
+  },
+  {
+    "n": "COSCOS, JENNIFER",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 159300,
+    "ma": 3362.45,
+    "d": "2022-11-26"
+  },
+  {
+    "n": "BAGNOL, MARIA LUMEN",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 26324,
+    "ma": 903,
+    "d": "2022-11-29"
+  },
+  {
+    "n": "BAGNOL, MARIA LUMEN",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 36,
+    "tp": 40696,
+    "ma": 1667,
+    "d": "2022-11-29"
+  },
+  {
+    "n": "RECENTE, MILA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 42142,
+    "ma": 1109,
+    "d": "2022-11-29"
+  },
+  {
+    "n": "COS, JOAN",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 24,
+    "tp": 4401,
+    "ma": 667,
+    "d": "2022-11-30"
+  },
+  {
+    "n": "COS, JOAN",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 8192,
+    "ma": 773.81,
+    "d": "2022-11-30"
+  },
+  {
+    "n": "COS, JOAN",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 7670,
+    "ma": 773.81,
+    "d": "2022-11-30"
+  },
+  {
+    "n": "ABULOC, MARISSA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 34894.8,
+    "ma": 886.8,
+    "d": "2022-12-01"
+  },
+  {
+    "n": "TAPAYAN, FE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 21000,
+    "ma": 924,
+    "d": "2022-12-06"
+  },
+  {
+    "n": "BAGARES, SHIELA MAE",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 142266,
+    "ma": 3548,
+    "d": "2022-12-10"
+  },
+  {
+    "n": "RESULAR, JUNALYN",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 147110,
+    "ma": 3547.75,
+    "d": "2022-12-19"
+  },
+  {
+    "n": "ALINSONORIN, LEABELETH",
+    "t": "FE-REGULAR",
+    "p": 615000,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 11306.7,
+    "d": "2022-12-23"
+  },
+  {
+    "n": "INGENTE, RALFE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 35872,
+    "ma": 924,
+    "d": "2022-12-23"
+  },
+  {
+    "n": "BERSAMINA, VIVIAN",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 42,
+    "tp": 177360.14,
+    "ma": 5737.14,
+    "d": "2023-01-03"
+  },
+  {
+    "n": "BARAHAN, ESTERLINA",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 19000,
+    "ma": 3973,
+    "d": "2023-01-05"
+  },
+  {
+    "n": "CABUG-OS GLICENDA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 84200,
+    "ma": 3200,
+    "d": "2023-01-06"
+  },
+  {
+    "n": "BILIRAN, FERMINO",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 450666,
+    "ma": 15583.33,
+    "d": "2023-01-15"
+  },
+  {
+    "n": "REYES, RICHELL",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 32000,
+    "ma": 924,
+    "d": "2023-01-26"
+  },
+  {
+    "n": "EBUA, LILIA",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 24,
+    "tp": 11667,
+    "ma": 667,
+    "d": "2023-02-03"
+  },
+  {
+    "n": "TORREJANO, RACHEL",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 169850,
+    "ma": 11824,
+    "d": "2023-02-16"
+  },
+  {
+    "n": "NIONES, FATIMA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 7278,
+    "ma": 924,
+    "d": "2023-02-24"
+  },
+  {
+    "n": "ENANORIA, MARIA VENUS",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 42,
+    "tp": 431000,
+    "ma": 15238.09,
+    "d": "2023-02-27"
+  },
+  {
+    "n": "NIONES, FATIMA",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 24,
+    "tp": 6304,
+    "ma": 667,
+    "d": "2023-02-28"
+  },
+  {
+    "n": "MEDIDAS, ELVIRA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 26608.5,
+    "ma": 1108.5,
+    "d": "2023-03-03"
+  },
+  {
+    "n": "ARGOTA, ANECITA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 23200,
+    "ma": 1035,
+    "d": "2023-03-10"
+  },
+  {
+    "n": "JUNASA, MARIA DEBBIE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 39600,
+    "ma": 1035,
+    "d": "2023-03-10"
+  },
+  {
+    "n": "RIBLE, MARINA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 48800,
+    "ma": 466.67,
+    "d": "2023-03-10"
+  },
+  {
+    "n": "MORAL, VIRGILIA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 27000,
+    "ma": 924,
+    "d": "2023-03-18"
+  },
+  {
+    "n": "ASPILLA, MARLOU JOAN",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 42,
+    "tp": 463964,
+    "ma": 15238.1,
+    "d": "2023-03-27"
+  },
+  {
+    "n": "BALO, GLORABEL",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 7924,
+    "ma": 924,
+    "d": "2023-04-03"
+  },
+  {
+    "n": "DAGMANG, NATIVIDAD",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 335000,
+    "ma": 14642.85,
+    "d": "2023-04-18"
+  },
+  {
+    "n": "PAGE, JEANETTE",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 42,
+    "tp": 801431.9199999999,
+    "ma": 15238.1,
+    "d": "2023-04-21"
+  },
+  {
+    "n": "PAGE, JEANETTE",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 42,
+    "tp": 548604.04,
+    "ma": 15238.1,
+    "d": "2023-04-21"
+  },
+  {
+    "n": "PAGE, JEANETTE",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 42,
+    "tp": 548604.04,
+    "ma": 15238.1,
+    "d": "2023-04-21"
+  },
+  {
+    "n": "COSCOS, CORA",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 40000,
+    "ma": 1250,
+    "d": "2023-05-23"
+  },
+  {
+    "n": "COSCOS, CORA",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 40000,
+    "ma": 1250,
+    "d": "2023-05-23"
+  },
+  {
+    "n": "CANTONEROS, ROSETTE",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 41250,
+    "ma": 1250,
+    "d": "2023-05-24"
+  },
+  {
+    "n": "ANDAL, GEMMA",
+    "t": "LL-PREMIUM",
+    "p": 50400,
+    "tm": 36,
+    "tp": 7000,
+    "ma": 1400,
+    "d": "2023-05-30"
+  },
+  {
+    "n": "DEGOLLACION, MARIA LOIDA",
+    "t": "OTHER",
+    "p": 108000,
+    "tm": 36,
+    "tp": 84000,
+    "ma": 3000,
+    "d": "2023-05-31"
+  },
+  {
+    "n": "MARCOJOS, DULCE",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 170000,
+    "ma": 11824,
+    "d": "2023-05-31"
+  },
+  {
+    "n": "SAMONTE, DIANE G.",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 41250,
+    "ma": 1250,
+    "d": "2023-05-31"
+  },
+  {
+    "n": "ASTILLO, PELIGNERO",
+    "t": "FE-REGULAR",
+    "p": 420460,
+    "tm": 42,
+    "tp": 242800,
+    "ma": 10010.95,
+    "d": "2023-06-06"
+  },
+  {
+    "n": "BADIANG, GLENDA",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 22329.690000000002,
+    "ma": 1250,
+    "d": "2023-06-07"
+  },
+  {
+    "n": "OLAVIDES, DANILO",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 8750,
+    "ma": 1250,
+    "d": "2023-06-15"
+  },
+  {
+    "n": "ROMERO, DENNIS",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 10000,
+    "ma": 1250,
+    "d": "2023-06-15"
+  },
+  {
+    "n": "ALIPOYO, MARIA LUISA U.",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 15300,
+    "ma": 1250,
+    "d": "2023-06-19"
+  },
+  {
+    "n": "ALIPOYO, MARIA LUISA U.",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 15300,
+    "ma": 1250,
+    "d": "2023-06-19"
+  },
+  {
+    "n": "RADAM, JAY C.",
+    "t": "CV",
+    "p": 29250,
+    "tm": 36,
+    "tp": 2584,
+    "ma": 812.5,
+    "d": "2023-06-19"
+  },
+  {
+    "n": "DE VERA, JOCELYN",
+    "t": "CV",
+    "p": 26550,
+    "tm": 36,
+    "tp": 19250.5,
+    "ma": 737.5,
+    "d": "2023-06-29"
+  },
+  {
+    "n": "GENITA, MARYLOU",
+    "t": "LL-PRIME",
+    "p": 54000,
+    "tm": 24,
+    "tp": 30906,
+    "ma": 2250,
+    "d": "2023-06-30"
+  },
+  {
+    "n": "INSON, JOVELYN",
+    "t": "LL-REGULAR",
+    "p": 45000,
+    "tm": 36,
+    "tp": 4750,
+    "ma": 1250,
+    "d": "2023-06-30"
+  },
+  {
+    "n": "PALMA, ANECITO",
+    "t": "CV",
+    "p": 26550,
+    "tm": 36,
+    "tp": 6825,
+    "ma": 737.5,
+    "d": "2023-06-30"
+  },
+  {
+    "n": "ITABLE, CECILIO",
+    "t": "FE-PRIME",
+    "p": 915000,
+    "tm": 42,
+    "tp": 653580,
+    "ma": 21786,
+    "d": "2023-07-31"
+  },
+  {
+    "n": "ENOPIA, MARISSA P.",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 154000,
+    "ma": 11824,
+    "d": "2023-08-22"
+  },
+  {
+    "n": "ANDAL, GEMMA",
+    "t": "LL-PREMIUM",
+    "p": 50400,
+    "tm": 36,
+    "tp": 10800,
+    "ma": 1400,
+    "d": "2023-08-30"
+  },
+  {
+    "n": "OMAÑA, ELSA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 12000,
+    "ma": 1000,
+    "d": "2023-09-30"
+  },
+  {
+    "n": "COSARE, MARICAR/VENERANDO COSARE III",
+    "t": "LL-REGULAR",
+    "p": 47650,
+    "tm": 36,
+    "tp": 4000,
+    "ma": 1326.61,
+    "d": "2023-10-02"
+  },
+  {
+    "n": "MOLINA, ROXANNE MAE M.",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 67300,
+    "ma": 3200,
+    "d": "2023-11-06"
+  },
+  {
+    "n": "WALOHAN, BENEDICTO",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 336000,
+    "ma": 10666.67,
+    "d": "2023-11-20"
+  },
+  {
+    "n": "ADECER, NELITA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 11050,
+    "ma": 833.33,
+    "d": "2023-11-21"
+  },
+  {
+    "n": "LLORENTE, RUFINA",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 36,
+    "tp": 11000,
+    "ma": 444.44,
+    "d": "2023-11-22"
+  },
+  {
+    "n": "GULILAT, ARTEMIO",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 348000,
+    "ma": 15583,
+    "d": "2023-11-30"
+  },
+  {
+    "n": "SUMALINOG, JASON",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 88500,
+    "ma": 10666.67,
+    "d": "2023-12-09"
+  },
+  {
+    "n": "BULIGAN, ALAIN MARK/JOAN A.",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 36,
+    "tp": 45587.5,
+    "ma": 1587.5,
+    "d": "2023-12-11"
+  },
+  {
+    "n": "CONCHA, ROMEO",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 10000,
+    "ma": 15583.33,
+    "d": "2023-12-13"
+  },
+  {
+    "n": "MALEZA, CANDY PEARL",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 770,
+    "ma": 0,
+    "d": "2023-12-15"
+  },
+  {
+    "n": "SMELLO, FLORIE MAE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 770,
+    "ma": 769.79,
+    "d": "2023-12-15"
+  },
+  {
+    "n": "TEVES, SHEILA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 770,
+    "ma": 769.79,
+    "d": "2023-12-15"
+  },
+  {
+    "n": "TEVES, SHEILA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 770,
+    "ma": 769.79,
+    "d": "2023-12-15"
+  },
+  {
+    "n": "MORALES, BOB/JERAH BOY",
+    "t": "LL-PRIME",
+    "p": 63000,
+    "tm": 60,
+    "tp": 8000,
+    "ma": 1500,
+    "d": "2023-12-19"
+  },
+  {
+    "n": "RAGANAS, MARIFE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 23850,
+    "ma": 833.33,
+    "d": "2023-12-22"
+  },
+  {
+    "n": "WALOHAN, ANA MICHELLE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 23850,
+    "ma": 833.33,
+    "d": "2023-12-22"
+  },
+  {
+    "n": "CABUS, BEATRIZE",
+    "t": "FE-PRIME",
+    "p": 640000,
+    "tm": 60,
+    "tp": 10000,
+    "ma": 0,
+    "d": "2023-12-29"
+  },
+  {
+    "n": "JAVATE, LEONISA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 42,
+    "tp": 13000,
+    "ma": 1131,
+    "d": "2023-12-29"
+  },
+  {
+    "n": "CATUBAG, JENNIFER",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 72,
+    "tp": 63000,
+    "ma": 2956,
+    "d": "2023-12-30"
+  },
+  {
+    "n": "GUTIERREZ, LESTER R.",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 72,
+    "tp": 80000,
+    "ma": 3864.35,
+    "d": "2023-12-30"
+  },
+  {
+    "n": "RALLOS, MARISAN",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 14350,
+    "ma": 1000,
+    "d": "2023-12-30"
+  },
+  {
+    "n": "UY, MARIA ANNABELLE",
+    "t": "LL-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 495585,
+    "ma": 15583.33,
+    "d": "2024-01-30"
+  },
+  {
+    "n": "VELOSO, RIZZALYN/BOLIGAO RICARDO",
+    "t": "FE-REGULAR",
+    "p": 615000,
+    "tm": 60,
+    "tp": 215000,
+    "ma": 10250,
+    "d": "2024-02-24"
+  },
+  {
+    "n": "YU, FEBBY GRACE",
+    "t": "CV",
+    "p": 28125,
+    "tm": 36,
+    "tp": 12560,
+    "ma": 781.25,
+    "d": "2024-03-07"
+  },
+  {
+    "n": "TIRO, GINA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 1000,
+    "d": "2024-03-11"
+  },
+  {
+    "n": "GULILAT, ARTEMIO",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 72000,
+    "ma": 3200,
+    "d": "2024-03-25"
+  },
+  {
+    "n": "BONJAN, VERONICA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 1900,
+    "ma": 833.33,
+    "d": "2024-03-27"
+  },
+  {
+    "n": "SIMPORIOS, LOLITA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 14000,
+    "ma": 1000,
+    "d": "2024-04-29"
+  },
+  {
+    "n": "SIMPORIOS, LOLITA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 14000,
+    "ma": 1000,
+    "d": "2024-04-29"
+  },
+  {
+    "n": "SIMPORIOS, LOLITA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 14000,
+    "ma": 1000,
+    "d": "2024-04-29"
+  },
+  {
+    "n": "CALUNIA, ELLEN",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 500,
+    "ma": 933.33,
+    "d": "2024-04-30"
+  },
+  {
+    "n": "PILOTOS, VIOLETA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 1000,
+    "ma": 933.33,
+    "d": "2024-04-30"
+  },
+  {
+    "n": "WONG, KEITH SPENCER",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 500,
+    "ma": 833.33,
+    "d": "2024-04-30"
+  },
+  {
+    "n": "CORDOVA, MA. KRISTINA/MARIA LOURDES",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 20000,
+    "ma": 833.33,
+    "d": "2024-05-06"
+  },
+  {
+    "n": "CORDOVA, MA. KRISTINA/MARIA JOSEFA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 19661,
+    "ma": 833.33,
+    "d": "2024-05-07"
+  },
+  {
+    "n": "CORTEJOS, ORLANDO",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 24300,
+    "ma": 1000,
+    "d": "2024-05-20"
+  },
+  {
+    "n": "SUELLO, MA. CECILIA/JOSEPHINE BOUCHARD",
+    "t": "CE",
+    "p": 640000,
+    "tm": 60,
+    "tp": 417538.78,
+    "ma": 10666.67,
+    "d": "2024-05-31"
+  },
+  {
+    "n": "MANTE, KAREN",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 36,
+    "tp": 414000,
+    "ma": 17777.78,
+    "d": "2024-06-10"
+  },
+  {
+    "n": "NADAL, CRISTY",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 67400,
+    "ma": 3200,
+    "d": "2024-06-11"
+  },
+  {
+    "n": "CORPUZ, NENITA F",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 10400,
+    "ma": 3200,
+    "d": "2024-06-30"
+  },
+  {
+    "n": "CAMBANGAY, MARY MYLA",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 224000,
+    "ma": 10667.67,
+    "d": "2024-07-15"
+  },
+  {
+    "n": "ADLAWAN, PRAXEDES",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 1000,
+    "ma": 1108.5,
+    "d": "2024-07-19"
+  },
+  {
+    "n": "CIFRA. MA. NELIA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 3200,
+    "d": "2024-08-01"
+  },
+  {
+    "n": "DABLIO, SHERWIN MOORE",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 1000,
+    "d": "2024-08-10"
+  },
+  {
+    "n": "LIBRES, MA. CHONA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 9000,
+    "ma": 1000,
+    "d": "2024-08-10"
+  },
+  {
+    "n": "JAVATE, LEONISA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 42,
+    "tp": 13000,
+    "ma": 1131,
+    "d": "2024-08-22"
+  },
+  {
+    "n": "ANTIPORTA, MARY ANN, LAURO SR. AMANCIO III",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 60,
+    "tp": 92000,
+    "ma": 4183.33,
+    "d": "2024-08-24"
+  },
+  {
+    "n": "ANTIPORTA, ROSENDA/LAURO SR",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 60,
+    "tp": 44000,
+    "ma": 4183.33,
+    "d": "2024-08-30"
+  },
+  {
+    "n": "COSARE, DASIY",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 1000,
+    "d": "2024-08-31"
+  },
+  {
+    "n": "LEBITA, ALLEN MAE/ABULOC, LUIS",
+    "t": "LL-PREMIUM",
+    "p": 50000,
+    "tm": 72,
+    "tp": 2310,
+    "ma": 769.79,
+    "d": "2024-08-31"
+  },
+  {
+    "n": "LEBITA, MIRALUNA",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 1000,
+    "d": "2024-08-31"
+  },
+  {
+    "n": "MAXILOM, EDGARDO S.",
+    "t": "LL-PRIME",
+    "p": 60000,
+    "tm": 60,
+    "tp": 21000,
+    "ma": 1000,
+    "d": "2024-09-05"
+  },
+  {
+    "n": "ALBURA, NEMESIO",
+    "t": "GL-PRIME",
+    "p": 32500,
+    "tm": 36,
+    "tp": 5000,
+    "ma": 902.78,
+    "d": "2024-09-19"
+  },
+  {
+    "n": "OHLHAUSEN, NILA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 15000,
+    "ma": 902.78,
+    "d": "2024-09-19"
+  },
+  {
+    "n": "PACLIBAR, MA. WILMA",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 10000,
+    "ma": 702.38,
+    "d": "2024-09-19"
+  },
+  {
+    "n": "ABARQUEZ, ALEJANDRO",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 25000,
+    "ma": 3200,
+    "d": "2024-09-20"
+  },
+  {
+    "n": "COS, FAITH ANN",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 51200,
+    "ma": 3200,
+    "d": "2024-09-22"
+  },
+  {
+    "n": "DELGADO, SARAH",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 51500,
+    "ma": 3200,
+    "d": "2024-09-22"
+  },
+  {
+    "n": "ESCALERA, BABELYN",
+    "t": "LL-REGULAR",
+    "p": 60000,
+    "tm": 60,
+    "tp": 19000,
+    "ma": 1000,
+    "d": "2024-09-24"
+  },
+  {
+    "n": "ADTUON, FLAVIANO",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 193200,
+    "ma": 15583.33,
+    "d": "2024-09-28"
+  },
+  {
+    "n": "ESCALERA, BABELYN",
+    "t": "LL-REGULAR",
+    "p": 60000,
+    "tm": 60,
+    "tp": 19000,
+    "ma": 1000,
+    "d": "2024-09-28"
+  },
+  {
+    "n": "PATAC, MARIA WILMA",
+    "t": "CE",
+    "p": 640000,
+    "tm": 60,
+    "tp": 238300,
+    "ma": 10666.67,
+    "d": "2024-10-01"
+  },
+  {
+    "n": "ESCALERA, AMELIA",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 202760,
+    "ma": 10666.67,
+    "d": "2024-10-02"
+  },
+  {
+    "n": "RUBEN, IAN RICHE/MARY ANN",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 288000,
+    "ma": 15583.33,
+    "d": "2024-10-08"
+  },
+  {
+    "n": "COSARE, BUENAVENTURA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 38500,
+    "ma": 833.33,
+    "d": "2024-10-14"
+  },
+  {
+    "n": "COSARE, BUENAVENTURA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 38500,
+    "ma": 833.33,
+    "d": "2024-10-14"
+  },
+  {
+    "n": "CIFRA, MARINA/ELUETERIO",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15500,
+    "ma": 833.33,
+    "d": "2024-10-21"
+  },
+  {
+    "n": "GOLIS, ROSALINA C",
+    "t": "CV",
+    "p": 29500,
+    "tm": 32,
+    "tp": 16250,
+    "ma": 702.38,
+    "d": "2024-10-21"
+  },
+  {
+    "n": "BELIDA, MARIBEL",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 2500,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "BELIDA, MARIBEL",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 2500,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "BOJA, JOANNA MAE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "CATAYAS, BASILIO",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 19014.78,
+    "ma": 902.78,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "CATAYAS, BASILIO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 42,
+    "tp": 21650.78,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "HOPIDA, MARIA PAQUITA/CORTEJOS, ORLANDO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 17300,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "HOPIDA, MARIA PAQUITA/CORTEJOS, ORLANDO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 15400,
+    "ma": 933.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "MUÑEZ, MICHELLE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15058,
+    "ma": 833.33,
+    "d": "2024-11-01"
+  },
+  {
+    "n": "TORREJANO, ROMEO",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 59000,
+    "ma": 3200,
+    "d": "2024-11-02"
+  },
+  {
+    "n": "AGA-ON, JUPITO",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 69000,
+    "ma": 3583.33,
+    "d": "2024-11-04"
+  },
+  {
+    "n": "ALMONTE, ULYSSES/MARIA VILMA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 6822,
+    "ma": 773.9,
+    "d": "2024-11-04"
+  },
+  {
+    "n": "BASILAN, PETER/MA. ALMA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 3500,
+    "ma": 773.9,
+    "d": "2024-11-04"
+  },
+  {
+    "n": "MAUSISA, EDWIN/MARISSA",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 185800,
+    "ma": 10666.67,
+    "d": "2024-11-09"
+  },
+  {
+    "n": "PILONGO, ROMANO/CLEOFE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 8500,
+    "ma": 933.33,
+    "d": "2024-11-11"
+  },
+  {
+    "n": "MILLORIA, CHONA",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 16500,
+    "ma": 819.44,
+    "d": "2024-11-12"
+  },
+  {
+    "n": "MILLORIA, CHONA",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 16500,
+    "ma": 819.44,
+    "d": "2024-11-12"
+  },
+  {
+    "n": "DAG-UM, MADONNA/CHRISTOPER",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11500,
+    "ma": 933.33,
+    "d": "2024-11-14"
+  },
+  {
+    "n": "DAG-UM, MADONNA/CHRISTOPER",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11500,
+    "ma": 933.33,
+    "d": "2024-11-14"
+  },
+  {
+    "n": "REYES, ALEJANDRA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 29000,
+    "ma": 3200,
+    "d": "2024-11-27"
+  },
+  {
+    "n": "CABARUBIAS, JEFF ERIC",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 19000,
+    "ma": 933.33,
+    "d": "2024-12-02"
+  },
+  {
+    "n": "ESCALERA, ALMA",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 26182.480000000003,
+    "ma": 3972.13,
+    "d": "2024-12-06"
+  },
+  {
+    "n": "DELA VICTORIA, VIVIAN/JESUS ROMEO",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 23000,
+    "ma": 3583.33,
+    "d": "2024-12-09"
+  },
+  {
+    "n": "CABARUBIAS, JEFF IVAN",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 16000,
+    "ma": 933.33,
+    "d": "2024-12-12"
+  },
+  {
+    "n": "CABARUBIAS, JEFF MARLON",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 12000,
+    "ma": 933.33,
+    "d": "2024-12-12"
+  },
+  {
+    "n": "CAGA, TITA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 30400,
+    "ma": 1354.17,
+    "d": "2024-12-16"
+  },
+  {
+    "n": "BAGSOLING, RACHEL",
+    "t": "OSSUARY",
+    "p": 21000,
+    "tm": 12,
+    "tp": 14000,
+    "ma": 1750,
+    "d": "2024-12-18"
+  },
+  {
+    "n": "MEDIDAS, ELVIRA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 5900,
+    "ma": 933.33,
+    "d": "2024-12-19"
+  },
+  {
+    "n": "BATAUSA, MELCHORA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 14000,
+    "ma": 933.33,
+    "d": "2024-12-20"
+  },
+  {
+    "n": "ASTILLO, TERESITA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 28847,
+    "ma": 833.33,
+    "d": "2024-12-22"
+  },
+  {
+    "n": "COSARE, VIRGINIA/CHAD",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 833.33,
+    "d": "2024-12-22"
+  },
+  {
+    "n": "RESTAURO, CHONA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 833.33,
+    "d": "2024-12-22"
+  },
+  {
+    "n": "SUBRADO, CRISTINE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 833.33,
+    "d": "2024-12-22"
+  },
+  {
+    "n": "LABRADOR, ALICE",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 48800,
+    "ma": 3583.33,
+    "d": "2024-12-24"
+  },
+  {
+    "n": "MUNEZ, MARIANITA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 833.33,
+    "d": "2024-12-24"
+  },
+  {
+    "n": "ALCANSARIN, EMELIE",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 15000,
+    "ma": 902.78,
+    "d": "2024-12-27"
+  },
+  {
+    "n": "PIEZAS, MADELYN",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 42,
+    "tp": 54800,
+    "ma": 3200,
+    "d": "2024-12-27"
+  },
+  {
+    "n": "ALCANSARIN, MARITES",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15100,
+    "ma": 833.33,
+    "d": "2024-12-30"
+  },
+  {
+    "n": "LEBITA, DELIA/CYRIL",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 1000,
+    "ma": 933.33,
+    "d": "2024-12-30"
+  },
+  {
+    "n": "MALINAO, SUSAN/FEBBIE RUTH",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 833.33,
+    "d": "2024-12-30"
+  },
+  {
+    "n": "ANGA, FEDERICK",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 6000,
+    "ma": 15583.33,
+    "d": "2025-01-08"
+  },
+  {
+    "n": "BONJAN, VERONICA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 6000,
+    "ma": 3200,
+    "d": "2025-01-08"
+  },
+  {
+    "n": "CABATINGAN, MA. SONIA",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 1000,
+    "ma": 466.67,
+    "d": "2025-01-15"
+  },
+  {
+    "n": "ASUBAR, SHARON",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 3,
+    "tp": 6000,
+    "ma": 933.33,
+    "d": "2025-01-19"
+  },
+  {
+    "n": "POQUITA, LILIBETH",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 8000,
+    "ma": 833.33,
+    "d": "2025-01-21"
+  },
+  {
+    "n": "ALCANSARIN, MARITES",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 36,
+    "tp": 13500,
+    "ma": 444.44,
+    "d": "2025-01-27"
+  },
+  {
+    "n": "ALCANSARIN, MARITES",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 36,
+    "tp": 13600,
+    "ma": 444.44,
+    "d": "2025-01-27"
+  },
+  {
+    "n": "PAMA, LAURICE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 15000,
+    "ma": 933.33,
+    "d": "2025-01-27"
+  },
+  {
+    "n": "ASOMBRADO, CARLO JOHN/SUZETTE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 10000,
+    "ma": 933.33,
+    "d": "2025-02-05"
+  },
+  {
+    "n": "MARABULAS, MARY JEAN",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 12000,
+    "ma": 702.38,
+    "d": "2025-02-16"
+  },
+  {
+    "n": "GOLIS, ROSALINA C",
+    "t": "CV",
+    "p": 29500,
+    "tm": 36,
+    "tp": 19750,
+    "ma": 702.38,
+    "d": "2025-02-17"
+  },
+  {
+    "n": "MULA, HERNANDO",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 24,
+    "tp": 2400,
+    "ma": 444.44,
+    "d": "2025-02-17"
+  },
+  {
+    "n": "DOVERTE, ERLINDA MARIA",
+    "t": "CV",
+    "p": 29500,
+    "tm": 60,
+    "tp": 3800,
+    "ma": 702.38,
+    "d": "2025-02-25"
+  },
+  {
+    "n": "FELICIA, CHARIE MAE",
+    "t": "CV",
+    "p": 29500,
+    "tm": 24,
+    "tp": 10479,
+    "ma": 1229.17,
+    "d": "2025-03-01"
+  },
+  {
+    "n": "FELICIA, CHARIE MAE",
+    "t": "CV",
+    "p": 29500,
+    "tm": 24,
+    "tp": 10479,
+    "ma": 1229.17,
+    "d": "2025-03-01"
+  },
+  {
+    "n": "ABULOC, LUIS",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 14000,
+    "ma": 933.33,
+    "d": "2025-03-08"
+  },
+  {
+    "n": "TACANDONG, PAMELA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 60,
+    "tp": 6300,
+    "ma": 773.81,
+    "d": "2025-03-10"
+  },
+  {
+    "n": "TACANDONG, PAMELA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 60,
+    "tp": 6300,
+    "ma": 773.81,
+    "d": "2025-03-10"
+  },
+  {
+    "n": "CATUBAG, LEONILA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 8000,
+    "ma": 902.78,
+    "d": "2025-03-13"
+  },
+  {
+    "n": "BAQUIAL. MARK TOMMY",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 2600,
+    "ma": 773.81,
+    "d": "2025-03-31"
+  },
+  {
+    "n": "CORBITA, JULIET",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 16695,
+    "ma": 833.33,
+    "d": "2025-03-31"
+  },
+  {
+    "n": "DOLIO, KLEO FIDENCIO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11800,
+    "ma": 933.33,
+    "d": "2025-04-02"
+  },
+  {
+    "n": "PIEZAS, LUCILA",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 101300,
+    "ma": 17274.13,
+    "d": "2025-04-02"
+  },
+  {
+    "n": "PIEZAS, LUCILA",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 17300,
+    "ma": 17274.13,
+    "d": "2025-04-02"
+  },
+  {
+    "n": "BAQUIAL. MARIA/MARVIN",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 1700,
+    "ma": 773.81,
+    "d": "2025-04-05"
+  },
+  {
+    "n": "ANGA, MAT EDWARD/LOVELY",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 7550,
+    "ma": 933.33,
+    "d": "2025-04-13"
+  },
+  {
+    "n": "ANGA, MAT EDWARD/LOVELY",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 7550,
+    "ma": 933.33,
+    "d": "2025-04-13"
+  },
+  {
+    "n": "CALAPE, KRESHIA MAE/MAMBERTO",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 10100,
+    "ma": 773.81,
+    "d": "2025-04-14"
+  },
+  {
+    "n": "DELGADO, MA. BELEN/MONGUIHO, JOSIE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 36,
+    "tp": 7600,
+    "ma": 1555.56,
+    "d": "2025-04-14"
+  },
+  {
+    "n": "MULA, KYCILYN",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 6500,
+    "ma": 924,
+    "d": "2025-05-15"
+  },
+  {
+    "n": "CANO, MONINA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 13000,
+    "ma": 833.33,
+    "d": "2025-05-17"
+  },
+  {
+    "n": "CANO, MONINA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 13000,
+    "ma": 833.33,
+    "d": "2025-05-17"
+  },
+  {
+    "n": "JAUM, MINNIE",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11199.960000000001,
+    "ma": 933.33,
+    "d": "2025-05-22"
+  },
+  {
+    "n": "TUQUIB, DAISY/ROGER",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 9000,
+    "ma": 833.33,
+    "d": "2025-05-22"
+  },
+  {
+    "n": "SATO, ELAISA MAE",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 1500,
+    "ma": 702.38,
+    "d": "2025-05-25"
+  },
+  {
+    "n": "SATO, ELAISA MAE",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 1500,
+    "ma": 702.38,
+    "d": "2025-05-25"
+  },
+  {
+    "n": "VIRAY, MITHI",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 13850,
+    "ma": 933.33,
+    "d": "2025-05-30"
+  },
+  {
+    "n": "MOLOS, NATHAN",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 42,
+    "tp": 13200,
+    "ma": 1190.5,
+    "d": "2025-05-31"
+  },
+  {
+    "n": "GENITA, ELMER",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 42,
+    "tp": 60000,
+    "ma": 5976.19,
+    "d": "2025-06-01"
+  },
+  {
+    "n": "CEREZO, FEROSVICA/ARTURO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11000,
+    "ma": 933.33,
+    "d": "2025-06-02"
+  },
+  {
+    "n": "RECTO, GODELIA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 11000,
+    "ma": 933.33,
+    "d": "2025-06-02"
+  },
+  {
+    "n": "NARAGA, MA. NANETH",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 12000,
+    "ma": 1190.5,
+    "d": "2025-06-04"
+  },
+  {
+    "n": "BELTRAN, MA. GRETEL",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 28200,
+    "ma": 3200,
+    "d": "2025-06-07"
+  },
+  {
+    "n": "ALBISO, PONCELITA/EDILBERTO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 36,
+    "tp": 18666.72,
+    "ma": 1555.56,
+    "d": "2025-06-11"
+  },
+  {
+    "n": "CELI, JIZZA",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 28954,
+    "ma": 3583.33,
+    "d": "2025-06-30"
+  },
+  {
+    "n": "SINGCOL, ANA ROISE/ARTHUR",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 2850,
+    "ma": 773.81,
+    "d": "2025-07-05"
+  },
+  {
+    "n": "SINGCOL, ANA ROISE/ARTHUR",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 2850,
+    "ma": 773.81,
+    "d": "2025-07-05"
+  },
+  {
+    "n": "BUGA, ADELITO/SHEILA MAE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 9000,
+    "ma": 833.33,
+    "d": "2025-07-08"
+  },
+  {
+    "n": "LANZADERAS, EMERLITA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 1034.6,
+    "d": "2025-07-09"
+  },
+  {
+    "n": "REYES, JERAMIE/JASPER",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 23000,
+    "ma": 3583.33,
+    "d": "2025-07-22"
+  },
+  {
+    "n": "MARTINEAZ, RACHEL",
+    "t": "FE-REGULAR",
+    "p": 615000,
+    "tm": 60,
+    "tp": 92250,
+    "ma": 10250,
+    "d": "2025-07-28"
+  },
+  {
+    "n": "ROSCO, FELIXBERTO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 7700,
+    "ma": 933.33,
+    "d": "2025-07-30"
+  },
+  {
+    "n": "LEBITA, OROSIA/NARCISO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 36,
+    "tp": 9520,
+    "ma": 1555.56,
+    "d": "2025-07-31"
+  },
+  {
+    "n": "FOLEY, MARIA JONA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 25600,
+    "ma": 3200,
+    "d": "2025-08-09"
+  },
+  {
+    "n": "MANTE, KAREN",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 3500,
+    "ma": 773.81,
+    "d": "2025-08-09"
+  },
+  {
+    "n": "OLOFERNES, SUSIE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 6000,
+    "ma": 924,
+    "d": "2025-08-18"
+  },
+  {
+    "n": "ESPEJO, MELANIE, MARIE/ADLAWAN",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 60,
+    "tp": 33400,
+    "ma": 4183.33,
+    "d": "2025-08-24"
+  },
+  {
+    "n": "ESPEJO, MELANIE, MARIE/ADLAWAN",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 60,
+    "tp": 33400,
+    "ma": 4183.33,
+    "d": "2025-08-24"
+  },
+  {
+    "n": "BALILI, ISABEL/CRSTINE",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 12450,
+    "ma": 3583.33,
+    "d": "2025-08-29"
+  },
+  {
+    "n": "CODILLA, GABRIEL",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 13500,
+    "ma": 3583.33,
+    "d": "2025-09-03"
+  },
+  {
+    "n": "ALBURA, RHODORA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 36,
+    "tp": 7000,
+    "ma": 833.33,
+    "d": "2025-09-06"
+  },
+  {
+    "n": "CUADERO, RENATO",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 4200,
+    "ma": 702.38,
+    "d": "2025-09-06"
+  },
+  {
+    "n": "BALAGA, MERIAM",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 39000,
+    "ma": 11824,
+    "d": "2025-09-08"
+  },
+  {
+    "n": "BUGA, SHEILA MAE/CALUNIA/         , GLECERIO",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 5880,
+    "ma": 833.33,
+    "d": "2025-09-18"
+  },
+  {
+    "n": "OPALLA, CECILIA/ERECA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 2000,
+    "ma": 902.78,
+    "d": "2025-09-18"
+  },
+  {
+    "n": "OPALLA, CECILIA/ERECA",
+    "t": "CV",
+    "p": 32500,
+    "tm": 36,
+    "tp": 2000,
+    "ma": 902.78,
+    "d": "2025-09-18"
+  },
+  {
+    "n": "ASOMBRADO, JOVELYN/RENATO",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 8000,
+    "ma": 833.33,
+    "d": "2025-09-28"
+  },
+  {
+    "n": "DEBULGADO, MIRASOL/LEO",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 7000,
+    "ma": 933.33,
+    "d": "2025-10-04"
+  },
+  {
+    "n": "AUDITOR, SEVERENA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 5022,
+    "ma": 833.33,
+    "d": "2025-10-11"
+  },
+  {
+    "n": "BANSAG, AVELINO",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 4900,
+    "ma": 774.81,
+    "d": "2025-10-14"
+  },
+  {
+    "n": "CUADERO, RENATO",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 4300,
+    "ma": 702.38,
+    "d": "2025-10-14"
+  },
+  {
+    "n": "PALMA,CHARITA/ ANECITO",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 3850,
+    "ma": 702.38,
+    "d": "2025-10-14"
+  },
+  {
+    "n": "SAMONTE, DIANE G./RERIC",
+    "t": "CV",
+    "p": 29500,
+    "tm": 42,
+    "tp": 4200,
+    "ma": 702.38,
+    "d": "2025-10-16"
+  },
+  {
+    "n": "RALLOS, MARISAN",
+    "t": "LL-PRIME",
+    "p": 75000,
+    "tm": 60,
+    "tp": 3750,
+    "ma": 1250,
+    "d": "2025-10-21"
+  },
+  {
+    "n": "GADIAN, JORGE/JHEROME/MANILLE JOY",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 8000,
+    "ma": 3200,
+    "d": "2025-10-23"
+  },
+  {
+    "n": "SAGARINO, ROSEMARIE",
+    "t": "GL-PRIME",
+    "p": 251000,
+    "tm": 60,
+    "tp": 44000,
+    "ma": 4183.33,
+    "d": "2025-10-23"
+  },
+  {
+    "n": "VILLAVER, MA. FURIZA/JULIUS",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 120000,
+    "ma": 15583.33,
+    "d": "2025-10-23"
+  },
+  {
+    "n": "MONTIBON, RUFO/MA. DOLORES",
+    "t": "OSSUARY",
+    "p": 16000,
+    "tm": 36,
+    "tp": 950,
+    "ma": 444.44,
+    "d": "2025-10-27"
+  },
+  {
+    "n": "MONTIBON, RUFO/MA. DOLORES",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 1884,
+    "ma": 933.33,
+    "d": "2025-10-27"
+  },
+  {
+    "n": "OPSIMA, LOILA LOU",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 42,
+    "tp": 1333.33,
+    "ma": 1333.33,
+    "d": "2025-10-27"
+  },
+  {
+    "n": "OPSIMA, LOILA LOU",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 42,
+    "tp": 1190.48,
+    "ma": 1190.48,
+    "d": "2025-10-27"
+  },
+  {
+    "n": "CABERTE, MA. WINZETTE/MARIA SUZETTE",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 4273,
+    "ma": 773,
+    "d": "2025-10-31"
+  },
+  {
+    "n": "CABERTE, MA. WINZETTE/MARIA SUZETTE",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 3750,
+    "ma": 773,
+    "d": "2025-10-31"
+  },
+  {
+    "n": "COS, AMADORA",
+    "t": "OTHER",
+    "p": 103520,
+    "tm": 60,
+    "tp": 8500,
+    "ma": 1725.33,
+    "d": "2025-10-31"
+  },
+  {
+    "n": "AMIGO, BERNARDITO",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 21000,
+    "ma": 833.33,
+    "d": "2025-11-02"
+  },
+  {
+    "n": "SEGURIGAN, SALUD",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 1500,
+    "ma": 466.67,
+    "d": "2025-11-03"
+  },
+  {
+    "n": "BANSAG, AVELINO",
+    "t": "CV",
+    "p": 32500,
+    "tm": 42,
+    "tp": 4900,
+    "ma": 773.81,
+    "d": "2025-11-10"
+  },
+  {
+    "n": "BURNS, MARIA MERLYN",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 100000,
+    "ma": 10666.67,
+    "d": "2025-11-14"
+  },
+  {
+    "n": "GALLO, DANTE",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 7700,
+    "ma": 3200,
+    "d": "2025-11-24"
+  },
+  {
+    "n": "BENIGA, MARIA FE",
+    "t": "FE-PREMIUM",
+    "p": 640000,
+    "tm": 60,
+    "tp": 105000,
+    "ma": 10666.67,
+    "d": "2025-12-17"
+  },
+  {
+    "n": "DE VERA, ANNALIZA/DELA TORRE, ANN JOREN JAY",
+    "t": "GL-PREMIUM",
+    "p": 215000,
+    "tm": 60,
+    "tp": 18500,
+    "ma": 3583.33,
+    "d": "2025-12-19"
+  },
+  {
+    "n": "CALUNIA, ROSALIE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 833.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "CALUNIA, ROSALIE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 833.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "CALUNIA, ROSALIE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 833.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "CALUNIA, VILLA RIZZA/GILBERT/MARIA ISABELLE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 13000,
+    "ma": 833.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "CALUNIA, VILLA RIZZA/GILBERT/MARIA ISABELLE",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 13000,
+    "ma": 833.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "MIRADORES, LOLITA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 1950,
+    "ma": 933.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "MIRADORES, LOLITA",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 1950,
+    "ma": 933.33,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "MIRADORES, LOLITA",
+    "t": "OSSUARY",
+    "p": 21000,
+    "tm": 36,
+    "tp": 1200,
+    "ma": 583.83,
+    "d": "2025-12-29"
+  },
+  {
+    "n": "MORALES, BOB",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 933.33,
+    "d": "2025-12-30"
+  },
+  {
+    "n": "BASLAN, ROSALIA/DUPA, APOLINARIA",
+    "t": "CV",
+    "p": 34125,
+    "tm": 36,
+    "tp": 8000,
+    "ma": 947.92,
+    "d": "2026-01-08"
+  },
+  {
+    "n": "BLANTUCAS, AGUSTINA",
+    "t": "CV",
+    "p": 34125,
+    "tm": 36,
+    "tp": 4000,
+    "ma": 947.92,
+    "d": "2026-01-08"
+  },
+  {
+    "n": "FUENTES, AMOR/ANECITO",
+    "t": "CV",
+    "p": 34125,
+    "tm": 42,
+    "tp": 1300,
+    "ma": 812.5,
+    "d": "2026-01-21"
+  },
+  {
+    "n": "FUENTES, AMOR/ANECITO",
+    "t": "CV",
+    "p": 34125,
+    "tm": 42,
+    "tp": 1300,
+    "ma": 812.5,
+    "d": "2026-01-21"
+  },
+  {
+    "n": "FUENTES, AMOR/ANECITO",
+    "t": "CV",
+    "p": 34125,
+    "tm": 42,
+    "tp": 1300,
+    "ma": 812.5,
+    "d": "2026-01-21"
+  },
+  {
+    "n": "LIBANTE, ANTONIA",
+    "t": "FE-PREMIUM",
+    "p": 530050,
+    "tm": 42,
+    "tp": 15000,
+    "ma": 12620.24,
+    "d": "2026-01-21"
+  },
+  {
+    "n": "LIBANTE, ANTONIA",
+    "t": "CV",
+    "p": 22988,
+    "tm": 42,
+    "tp": 1028,
+    "ma": 547.36,
+    "d": "2026-01-21"
+  },
+  {
+    "n": "RECONES, MA. SOCORRO",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 4190,
+    "ma": 1388.88,
+    "d": "2026-01-27"
+  },
+  {
+    "n": "ENRIQUEZ, DANILO/BROK, DANEZA",
+    "t": "CV",
+    "p": 34125,
+    "tm": 42,
+    "tp": 2000,
+    "ma": 812.5,
+    "d": "2026-01-28"
+  },
+  {
+    "n": "LIBANTE, GINA",
+    "t": "OSSUARY",
+    "p": 22050,
+    "tm": 36,
+    "tp": 1800,
+    "ma": 612.5,
+    "d": "2026-01-29"
+  },
+  {
+    "n": "ORCULLO, LYDIA",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 1000,
+    "ma": 466.67,
+    "d": "2026-01-31"
+  },
+  {
+    "n": "RAGANAS, JOSHUA FERDY",
+    "t": "LL-REGULAR",
+    "p": 52500,
+    "tm": 42,
+    "tp": 3750,
+    "ma": 1250,
+    "d": "2026-01-31"
+  },
+  {
+    "n": "REMOTCHA, MA. VANESSA",
+    "t": "CV",
+    "p": 34125,
+    "tm": 60,
+    "tp": 2000,
+    "ma": 34125,
+    "d": "2026-01-31"
+  },
+  {
+    "n": "RICAFORT, CLARIS E.",
+    "t": "CV",
+    "p": 34125,
+    "tm": 42,
+    "tp": 500,
+    "ma": 812.5,
+    "d": "2026-02-06"
+  },
+  {
+    "n": "WEIL, MYLA",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 42,
+    "tp": 2000,
+    "ma": 1400,
+    "d": "2026-02-10"
+  },
+  {
+    "n": "WEIL, MYLA",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 42,
+    "tp": 2000,
+    "ma": 1400,
+    "d": "2026-02-10"
+  },
+  {
+    "n": "AUZA, JERALYN",
+    "t": "CE-PREMIUM",
+    "p": 672000,
+    "tm": 60,
+    "tp": 35000,
+    "ma": 12415.2,
+    "d": "2026-02-14"
+  },
+  {
+    "n": "CELI, JIZZA",
+    "t": "CV",
+    "p": 30922,
+    "tm": 60,
+    "tp": 25000,
+    "ma": 10461.25,
+    "d": "2026-02-16"
+  },
+  {
+    "n": "DEAN, ALETH",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 24,
+    "tp": 15000,
+    "ma": 2241.66,
+    "d": "2026-02-24"
+  },
+  {
+    "n": "DEAN, ALETH",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 24,
+    "tp": 15000,
+    "ma": 2241.66,
+    "d": "2026-02-24"
+  },
+  {
+    "n": "SUAYBAGUIO, DELIA",
+    "t": "GL-REGULAR",
+    "p": 192000,
+    "tm": 60,
+    "tp": 5200,
+    "ma": 3200,
+    "d": "2026-02-24"
+  },
+  {
+    "n": "CABILAN, RODOLFO",
+    "t": "LL-REGULAR",
+    "p": 52500,
+    "tm": 60,
+    "tp": 2000,
+    "ma": 969.94,
+    "d": "2026-03-02"
+  },
+  {
+    "n": "REMULTA, JASON",
+    "t": "LL-REGULAR",
+    "p": 52500,
+    "tm": 60,
+    "tp": 1000,
+    "ma": 969.94,
+    "d": "2026-03-13"
+  },
+  {
+    "n": "RONTALO, FELISA/NEPTALI",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 60,
+    "tp": 3000,
+    "ma": 1086.33,
+    "d": "2026-03-17"
+  },
+  {
+    "n": "OPALLA, ERECA",
+    "t": "LL-PREMIUM",
+    "p": 58800,
+    "tm": 42,
+    "tp": 1000,
+    "ma": 1400,
+    "d": "2026-03-29"
+  },
+  {
+    "n": "FERMO, ELIZABETH S.",
+    "t": "LL-REGULAR",
+    "p": 52500,
+    "tm": 42,
+    "tp": 1000,
+    "ma": 1250,
+    "d": "2026-04-09"
+  },
+  {
+    "n": "LOMA-AD, PAULETTE MARCIA",
+    "t": "LL-REGULAR",
+    "p": 52500,
+    "tm": 42,
+    "tp": 1000,
+    "ma": 1250,
+    "d": "2026-04-09"
+  },
+  {
+    "n": "ANGA, MIRAFLOR",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 12000,
+    "ma": 933.33,
+    "d": "2026-04-28"
+  },
+  {
+    "n": "MOSQUERA, MA, ANGELITA",
+    "t": "LL-REGULAR",
+    "p": 50000,
+    "tm": 60,
+    "tp": 11000,
+    "ma": 833.33,
+    "d": "2026-05-07"
+  },
+  {
+    "n": "REYES, MAECELLIZA",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 3000,
+    "ma": 466.67,
+    "d": "2026-11-02"
+  },
+  {
+    "n": "REYES, MAECELLIZA",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 3000,
+    "ma": 466.67,
+    "d": "2026-11-02"
+  },
+  {
+    "n": "MEJARES, KAREN",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 2000,
+    "ma": 466.67,
+    "d": "2026-11-05"
+  },
+  {
+    "n": "MIRADORES, LOLITA",
+    "t": "OSSUARY",
+    "p": 16800,
+    "tm": 36,
+    "tp": 1000,
+    "ma": 444.44,
+    "d": "2026-12-19"
+  },
+  {
+    "n": "CABRIGAS, JHONALYN",
+    "t": "LL-PREMIUM",
+    "p": 56000,
+    "tm": 60,
+    "tp": 4000,
+    "ma": 933.33,
+    "d": "2026-12-29"
+  },
+  {
+    "n": "PALAPAR, SERENE, AND BACUS BAETRICE",
+    "t": "FE-PRIME",
+    "p": 935000,
+    "tm": 60,
+    "tp": 77500,
+    "ma": 15416.67,
+    "d": "2026-12-29"
+  },
+  {
+    "n": "BULAN. CRISCEL",
+    "t": "OTHER",
+    "p": 640000,
+    "tm": 36,
+    "tp": 373333.3800000001,
+    "ma": 17777.78,
+    "d": "2024-01-01"
+  }
+]

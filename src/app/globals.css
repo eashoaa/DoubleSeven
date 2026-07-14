@@ -1,26 +1,256 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --color-wash-start: var(--wash-start);
+  --color-wash-end: var(--wash-end);
+  --color-surface: var(--surface);
+  --color-hairline: var(--hairline);
+  --color-status-available-bg: var(--status-available-bg);
+  --color-status-available-fg: var(--status-available-fg);
+  --color-status-available-map: var(--status-available-map);
+  --color-status-reserved-bg: var(--status-reserved-bg);
+  --color-status-reserved-fg: var(--status-reserved-fg);
+  --color-status-reserved-map: var(--status-reserved-map);
+  --color-status-active-bg: var(--status-active-bg);
+  --color-status-active-fg: var(--status-active-fg);
+  --color-status-active-map: var(--status-active-map);
+  --color-status-delinquent-bg: var(--status-delinquent-bg);
+  --color-status-delinquent-fg: var(--status-delinquent-fg);
+  --color-status-delinquent-map: var(--status-delinquent-map);
+  --color-status-defaulted-bg: var(--status-defaulted-bg);
+  --color-status-defaulted-fg: var(--status-defaulted-fg);
+  --color-status-defaulted-map: var(--status-defaulted-map);
+  --color-status-cancelled-bg: var(--status-cancelled-bg);
+  --color-status-cancelled-fg: var(--status-cancelled-fg);
+  --color-status-cancelled-map: var(--status-cancelled-map);
+  --color-status-paid-bg: var(--status-paid-bg);
+  --color-status-paid-fg: var(--status-paid-fg);
+  --color-status-paid-map: var(--status-paid-map);
+  --color-tier-prime: var(--tier-prime);
+  --color-tier-premium: var(--tier-premium);
+  --color-tier-regular: var(--tier-regular);
+  --color-chip-indigo-bg: var(--chip-indigo-bg);
+  --color-chip-indigo-fg: var(--chip-indigo-fg);
+  --color-chip-amber-bg: var(--chip-amber-bg);
+  --color-chip-amber-fg: var(--chip-amber-fg);
+  --color-chip-violet-bg: var(--chip-violet-bg);
+  --color-chip-violet-fg: var(--chip-violet-fg);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: #eef2fb;
+  --foreground: #16181d;
+  --card: #ffffff;
+  --card-foreground: #16181d;
+  --popover: #ffffff;
+  --popover-foreground: #16181d;
+  --primary: #14151a;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f5f9;
+  --secondary-foreground: #14151a;
+  --muted: #f4f5f9;
+  --muted-foreground: #6b7280;
+  --accent: #eef0fe;
+  --accent-foreground: #4338ca;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #eceef3;
+  --input: #eceef3;
+  --ring: #6366f1;
+  --chart-1: #6366f1;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #818cf8;
+  --radius: 0.9rem;
+
+  /* KlaroNotes wash + surface */
+  --wash-start: #e8eefc;
+  --wash-end: #eef2fb;
+  --surface: #ffffff;
+  --hairline: #eceef3;
+
+  --sidebar: transparent;
+  --sidebar-foreground: #16181d;
+  --sidebar-primary: #14151a;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #14151a;
+  --sidebar-border: #eceef3;
+  --sidebar-ring: #6366f1;
+
+  /* Status ramp — functional data, not decoration. WCAG-checked text-on-bg pairs. */
+  --status-available-bg: #f1f5f9;
+  --status-available-fg: #475569;
+  --status-available-map: #cbd5e1;
+  --status-reserved-bg: #fef3c7;
+  --status-reserved-fg: #92400e;
+  --status-reserved-map: #fbbf24;
+  --status-active-bg: #d1fae5;
+  --status-active-fg: #065f46;
+  --status-active-map: #34d399;
+  --status-delinquent-bg: #ffedd5;
+  --status-delinquent-fg: #9a3412;
+  --status-delinquent-map: #fb923c;
+  --status-defaulted-bg: #fee2e2;
+  --status-defaulted-fg: #991b1b;
+  --status-defaulted-map: #f87171;
+  --status-cancelled-bg: #e7e5e4;
+  --status-cancelled-fg: #44403c;
+  --status-cancelled-map: #a8a29e;
+  --status-paid-bg: #e0e7ff;
+  --status-paid-fg: #3730a3;
+  --status-paid-map: #818cf8;
+
+  /* Tier ramp — matches the printed sales maps staff already use */
+  --tier-prime: #ef4444;
+  --tier-premium: #eab308;
+  --tier-regular: #3b82f6;
+
+  /* Icon chips */
+  --chip-indigo-bg: #eef0fe;
+  --chip-indigo-fg: #4f46e5;
+  --chip-amber-bg: #fef3c7;
+  --chip-amber-fg: #b45309;
+  --chip-violet-bg: #f3e8ff;
+  --chip-violet-fg: #7e22ce;
+}
+
+.dark {
+  --background: #0d0e14;
+  --foreground: #eceef3;
+  --card: #16181f;
+  --card-foreground: #eceef3;
+  --popover: #16181f;
+  --popover-foreground: #eceef3;
+  --primary: #eceef3;
+  --primary-foreground: #14151a;
+  --secondary: #1c1e27;
+  --secondary-foreground: #eceef3;
+  --muted: #1c1e27;
+  --muted-foreground: #9295a3;
+  --accent: #1e1f3a;
+  --accent-foreground: #a5b4fc;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: color-mix(in oklab, #eceef3 12%, transparent);
+  --input: color-mix(in oklab, #eceef3 15%, transparent);
+  --ring: #818cf8;
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #6366f1;
+
+  --wash-start: #0b0c12;
+  --wash-end: #12131b;
+  --surface: #16181f;
+  --hairline: color-mix(in oklab, #eceef3 12%, transparent);
+
+  --sidebar: transparent;
+  --sidebar-foreground: #eceef3;
+  --sidebar-primary: #eceef3;
+  --sidebar-primary-foreground: #14151a;
+  --sidebar-accent: #1c1e27;
+  --sidebar-accent-foreground: #eceef3;
+  --sidebar-border: color-mix(in oklab, #eceef3 12%, transparent);
+  --sidebar-ring: #818cf8;
+
+  --status-available-bg: #1c1e27;
+  --status-available-fg: #9ca3af;
+  --status-available-map: #475569;
+  --status-reserved-bg: #3a2c10;
+  --status-reserved-fg: #fbbf24;
+  --status-reserved-map: #d97706;
+  --status-active-bg: #0f2e22;
+  --status-active-fg: #34d399;
+  --status-active-map: #059669;
+  --status-delinquent-bg: #3a2410;
+  --status-delinquent-fg: #fb923c;
+  --status-delinquent-map: #c2410c;
+  --status-defaulted-bg: #3a1414;
+  --status-defaulted-fg: #f87171;
+  --status-defaulted-map: #b91c1c;
+  --status-cancelled-bg: #232428;
+  --status-cancelled-fg: #a8a29e;
+  --status-cancelled-map: #57534e;
+  --status-paid-bg: #1e1f3a;
+  --status-paid-fg: #a5b4fc;
+  --status-paid-map: #6366f1;
+
+  --tier-prime: #f87171;
+  --tier-premium: #fbbf24;
+  --tier-regular: #60a5fa;
+
+  --chip-indigo-bg: #1e1f3a;
+  --chip-indigo-fg: #a5b4fc;
+  --chip-amber-bg: #3a2c10;
+  --chip-amber-fg: #fbbf24;
+  --chip-violet-bg: #2c1a3a;
+  --chip-violet-fg: #d8b4fe;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply text-foreground;
+    background: linear-gradient(160deg, var(--wash-start), var(--wash-end));
+    background-attachment: fixed;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .font-serif-italic {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
 }
