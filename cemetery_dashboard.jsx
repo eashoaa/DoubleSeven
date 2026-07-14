@@ -1,0 +1,4783 @@
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import * as XLSX from "xlsx";
+import {
+  Search, X, Plus, Trash2, ZoomIn, ZoomOut, Maximize2, TrendingUp, Users,
+  Map as MapIcon, BookOpen, Receipt, FileText, Download, ExternalLink, Save,
+  History, Ban, Circle, AlertTriangle, ArrowUpRight, ArrowDownRight, Wallet,
+  ChevronUp, ChevronDown, Filter, CheckCircle2, XCircle, RotateCcw, UserCheck,
+  Building, Home, Cross, ChevronsUpDown, FileSignature, Calendar
+} from "lucide-react";
+
+// ============ CONSTANTS ============
+// Status taxonomy matches D7 Bohol Memorial Park real classifications
+const STATUS = {
+  available:  { label: "Available",            color: "#eef1f5", stroke: "#c7cfd9", text: "#5b6470", dot: "#b6bfcb" },
+  reserved:   { label: "Reserved",             color: "#d6e8ff", stroke: "#6fa8f0", text: "#1c548f", dot: "#4c94f0" },
+  active:     { label: "Active",               color: "#c3ecd6", stroke: "#41b47c", text: "#136639", dot: "#2fbd76" },
+  delinquent: { label: "Delinquent",           color: "#ffe6ac", stroke: "#eab130", text: "#87560a", dot: "#f0b429" },
+  defaulted:  { label: "Defaulted",            color: "#ffcdc8", stroke: "#f4675a", text: "#9c1f14", dot: "#ff5e50" },
+  cancelled:  { label: "Cancelled / Forfeited", color: "#3a3d42", stroke: "#212327", text: "#e9ebee", dot: "#3a3d42" },
+  paid:       { label: "Fully Paid",           color: "#adebc2", stroke: "#2ec95c", text: "#0c6b2e", dot: "#2ec95c" },
+};
+
+// SECTIONS now represent real D7 Bohol Memorial Park lot type areas
+// Each area contains lots of one type family. Pricing reflects actual D7 data.
+const SECTIONS = {
+  ll:  { id: "ll",  label: "Lawn Lots",       short: "LL",      icon: MapIcon,  color: "#5fa377", priceRange: [45000, 96000],   description: "Ground burial lots (Regular/Premium/Prime)" },
+  gl:  { id: "gl",  label: "Garden Lots",     short: "GL",      icon: Home,     color: "#c48f1e", priceRange: [120000, 251000], description: "Elevated garden lots (Regular/Premium/Prime)" },
+  fe:  { id: "fe",  label: "Family Estates",  short: "FE",      icon: Cross,    color: "#5a4a8b", priceRange: [420000, 935000], description: "Large family plots (Regular/Premium/Prime)" },
+  ce:  { id: "ce",  label: "Court Estates",   short: "CE",      icon: Building, color: "#8b4a4a", priceRange: [640000, 672000], description: "Premium estate compounds" },
+  cv:  { id: "cv",  label: "Community Vaults",short: "CV",      icon: Building, color: "#8b6f47", priceRange: [22000, 34125],   description: "Wall niches (community vaults)" },
+  os:  { id: "os",  label: "Ossuary",         short: "OSSUARY", icon: Building, color: "#666666", priceRange: [16000, 22050],   description: "Bone vaults" },
+};
+
+// Tier configurations within each type family
+const TIERS = {
+  REGULAR: { label: "Regular", multiplier: 1.0 },
+  PREMIUM: { label: "Premium", multiplier: 1.15 },
+  PRIME:   { label: "Prime",   multiplier: 1.35 },
+};
+
+// ============ HEAVEN'S GATE OFFICIAL ASSETS ============
+// Real site plans, tier-coded sales maps, niche grids, and 3D design renders.
+// Base path resolves next to the app file (works for the local preview + static host).
+const ASSET_BASE = "heavensgate_assets/";
+const A = (f) => ASSET_BASE + f;
+const PARK_ASSETS = {
+  masterPlan: { src: A("WHOLE MAP (1).jpeg"), label: "Official Master Site Plan", kind: "Site Plan" },
+  // Per-section reference layouts (tier-coded sales maps & niche grids)
+  sectionRef: {
+    ll: { src: A("LAWN LOT (1).jpg"),               label: "Lawn Lot — Tier Sales Map",        kind: "Sales Map" },
+    gl: { src: A("GARDEN LOT SALES MAP (1).jpg"),   label: "Garden Lot — Tier Sales Map",      kind: "Sales Map" },
+    cv: { src: A("1000005781 (4) (2).jpg"),         label: "Community Vault 01 — Niche Grid",  kind: "Niche Grid" },
+    os: { src: A("Messenger_creation_2E738557-0708-406A-8A63-B70F362B344A (1).jpeg"), label: "Ossuary — Elevation & Niche Grid", kind: "Niche Grid" },
+  },
+  // 3D architectural renders grouped by section
+  renders: [
+    { section: "fe", src: A("4 by 4 1s v2_Photo - 2 (1).jpg"), label: "Family Estate · 4×4 (One-Storey)" },
+    { section: "fe", src: A("4 by 4 2s v3 (1).jpg"),           label: "Family Estate · 4×4 (Two-Storey)" },
+    { section: "fe", src: A("4 by 5 1s v2_Photo - 2 (1).jpg"), label: "Family Estate · 4×5 (One-Storey)" },
+    { section: "fe", src: A("6 by 5 1s v2_Photo - 2 (1).jpg"), label: "Family Estate · 6×5 (One-Storey)" },
+    { section: "ce", src: A("COURT ESTATE 1 (1).jpg"),         label: "Court Estate · Front Elevation" },
+    { section: "ce", src: A("courts pers_Photo - 24 (1).jpg"), label: "Court Estate · Aerial Perspective" },
+    { section: "ce", src: A("CEEEE (1).jpg"),                  label: "Court Estate · Garden View" },
+    { section: "cv", src: A("Messenger_creation_3de40db7-a919-44f7-83a0-561aa6dcffd1 (1).jpeg"), label: "Community Vault · Columbarium Wall" },
+    { section: "cv", src: A("Messenger_creation_b560213d-28da-49f6-8278-6361448e75a7.jpeg"),     label: "Columbarium · Vault · Ossuary Row" },
+    { section: "cv", src: A("Messenger_creation_abad4221-ed00-46f6-bcc9-abfaf6b9c6f4 (2).jpeg"), label: "Community Vault · Candle-Light Court" },
+  ],
+};
+// Flat list of every visual (used for the hero rotation)
+const ALL_RENDERS = PARK_ASSETS.renders;
+
+const PAYMENT_METHODS = ["Cash", "Check", "Bank Transfer", "GCash", "Credit Card", "PayMaya", "Other"];
+const EXPENSE_CATEGORIES = ["Maintenance", "Salaries", "Utilities", "Landscaping", "Equipment", "Supplies", "Marketing", "Administrative", "Other"];
+// Payment composition types - D7 Bohol tracks these as separate categories
+const TX_TYPES = {
+  reservation: { label: "Reservation",     color: "#cde3b8", textColor: "#2d5018" },
+  interment:   { label: "Interment Fee",   color: "#e3d8b8", textColor: "#5a4a2a" },
+  downpayment: { label: "Down Payment",    color: "#a8d5ba", textColor: "#1f4a2d" },
+  spotcash:    { label: "Spot Cash",       color: "#7dd99a", textColor: "#0f3a1a" },
+  discounted:  { label: "Discounted",      color: "#fde4a8", textColor: "#7a5a0f" },
+  amortization:{ label: "Monthly Amort.",  color: "#a8d5ba", textColor: "#1f4a2d" },
+  sale:        { label: "Sale Payment",    color: "#a8d5ba", textColor: "#1f4a2d" },
+  maintenance: { label: "Maintenance Fee", color: "#e3d8b8", textColor: "#5a4a2a" },
+  forfeit:     { label: "Forfeited Rev",   color: "#fde4a8", textColor: "#7a5a0f" },
+  refund:      { label: "Refund",          color: "#f4a8a8", textColor: "#5e1a1a" },
+  void:        { label: "Voided",          color: "#d4d4d4", textColor: "#525252" },
+};
+
+// Standard term options in months — based on D7 Bohol actual usage
+const TERM_OPTIONS = [24, 36, 42, 60, 72];
+
+const BANK_ACCOUNTS = [
+  { id: "cash", name: "Cash on Hand", type: "cash" },
+  { id: "bpi_op", name: "BPI Operating Account", type: "bank" },
+  { id: "bdo_dep", name: "BDO Deposit Account", type: "bank" },
+  { id: "metro", name: "Metrobank Reserve", type: "bank" },
+];
+
+const ROLES = {
+  admin: {
+    label: "Admin",
+    color: "#5a4a8b",
+    tabs: ["home","map","ledger","expenses","clients","cash","agents","collections","transfers","reports","audit","trash","settings","pending"],
+    can: {
+      viewAllFinancials: true,
+      recordPayment: true,
+      recordReservationOnly: false,
+      voidPayment: true,
+      deletePayment: true,
+      editLotPrice: true,
+      forfeitLot: true,
+      releaseLot: true,
+      createClient: true,
+      editClient: true,
+      transferLot: true,
+      manageAgents: true,
+      payOutCommission: true,
+      lockPeriods: true,
+      verifyPending: true,
+      bulkDeposit: true,
+      restoreTrash: true,
+      requireReceiptPhoto: false,
+      requireDepositProof: false,
+      seeOwnClientsOnly: false,
+    },
+  },
+  accountant: {
+    label: "Accountant",
+    color: "#1f4a2d",
+    tabs: ["home","collections","cash","ledger","pending"],
+    can: {
+      viewAllFinancials: true,
+      recordPayment: true,
+      recordReservationOnly: false,
+      voidPayment: false,
+      deletePayment: false,
+      editLotPrice: false,
+      forfeitLot: false,
+      releaseLot: false,
+      createClient: false,
+      editClient: false,
+      transferLot: false,
+      manageAgents: false,
+      payOutCommission: false,
+      lockPeriods: false,
+      verifyPending: false,
+      bulkDeposit: true,
+      restoreTrash: false,
+      requireReceiptPhoto: true,
+      requireDepositProof: true,
+      seeOwnClientsOnly: false,
+    },
+  },
+  marketing: {
+    label: "Marketing",
+    color: "#a13838",
+    tabs: ["home","map","clients","pending"],
+    can: {
+      viewAllFinancials: false,
+      recordPayment: true,
+      recordReservationOnly: true,
+      voidPayment: false,
+      deletePayment: false,
+      editLotPrice: false,
+      forfeitLot: false,
+      releaseLot: false,
+      createClient: true,
+      editClient: true,
+      transferLot: false,
+      manageAgents: false,
+      payOutCommission: false,
+      lockPeriods: false,
+      verifyPending: false,
+      bulkDeposit: false,
+      restoreTrash: false,
+      requireReceiptPhoto: true,
+      requireDepositProof: false,
+      seeOwnClientsOnly: false,
+    },
+  },
+  staff: {
+    label: "Staff",
+    color: "#7a5a0f",
+    tabs: ["home","map","clients"],
+    can: {
+      viewAllFinancials: false,
+      recordPayment: false,
+      recordReservationOnly: false,
+      voidPayment: false,
+      deletePayment: false,
+      editLotPrice: false,
+      forfeitLot: false,
+      releaseLot: false,
+      createClient: false,
+      editClient: false,
+      transferLot: false,
+      manageAgents: false,
+      payOutCommission: false,
+      lockPeriods: false,
+      verifyPending: false,
+      bulkDeposit: false,
+      restoreTrash: false,
+      requireReceiptPhoto: false,
+      requireDepositProof: false,
+      seeOwnClientsOnly: false,
+    },
+  },
+  agent: {
+    label: "Sales Agent",
+    color: "#c48f1e",
+    tabs: ["home","map","clients"],
+    can: {
+      viewAllFinancials: false,
+      recordPayment: false,
+      recordReservationOnly: false,
+      voidPayment: false,
+      deletePayment: false,
+      editLotPrice: false,
+      forfeitLot: false,
+      releaseLot: false,
+      createClient: false,
+      editClient: false,
+      transferLot: false,
+      manageAgents: false,
+      payOutCommission: false,
+      lockPeriods: false,
+      verifyPending: false,
+      bulkDeposit: false,
+      restoreTrash: false,
+      requireReceiptPhoto: false,
+      requireDepositProof: false,
+      seeOwnClientsOnly: true,
+    },
+  },
+};
+
+// Helper to check permissions
+const can = (user, capability) => {
+  if (!user) return false;
+  const role = ROLES[user.role];
+  if (!role) return false;
+  return !!role.can[capability];
+};
+const hasTab = (user, tabId) => {
+  if (!user) return false;
+  const role = ROLES[user.role];
+  if (!role) return false;
+  return role.tabs.includes(tabId);
+};
+
+const CALL_STATUSES = {
+  pending:  { label: "To Call",       color: "#fde4a8", textColor: "#7a5a0f" },
+  called:   { label: "Called",        color: "#cde3b8", textColor: "#2d5018" },
+  message:  { label: "Left Message",  color: "#e3d8b8", textColor: "#5a4a2a" },
+  promised: { label: "Promised Pmt",  color: "#a8d5ba", textColor: "#1f4a2d" },
+  no_answer:{ label: "No Answer",     color: "#f4a8a8", textColor: "#5e1a1a" },
+  resolved: { label: "Resolved",      color: "#d4d4d4", textColor: "#525252" },
+};
+
+const CURRENCIES = {
+  PHP: { symbol: "₱", rate: 1 },
+  USD: { symbol: "$", rate: 56 },  // PHP per USD
+};
+
+const peso = (n) => "₱" + Math.round(Number(n)||0).toLocaleString();
+const today = () => new Date().toISOString().slice(0,10);
+const nowISO = () => new Date().toISOString();
+const daysBetween = (a, b) => Math.floor((new Date(b) - new Date(a)) / (1000*60*60*24));
+const uid = (prefix="") => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2,7)}`;
+const monthKey = (d) => d ? d.slice(0,7) : "";
+const inLockedMonth = (date, lockedMonths) => (lockedMonths||[]).includes(monthKey(date));
+const convertToPHP = (amount, currency, rate) => currency === "PHP" ? amount : amount * (rate || CURRENCIES[currency]?.rate || 1);
+
+// ============ LAYOUT GENERATION ============
+// Lots are positioned to mirror the real D7 Bohol survey plan (see WHOLE MAP):
+// a central Phase-02 lot grid + two LAWN LOT blocks, two GARDEN LOT blocks (Phase 01),
+// family-estate (FEP) lots hugging the boundary roads, a premium court-estate row,
+// and the community-vault / ossuary niche banks along the top.
+function gridBlock(section, prefix, startId, block, offsetX = 0, offsetY = 0) {
+  const lots = [];
+  const gap = block.gap ?? 4;
+  let id = startId, placed = 0;
+  for (let r = 0; r < block.rows && placed < block.count; r++) {
+    for (let c = 0; c < block.cols && placed < block.count; c++) {
+      const x = block.startX + c * block.cellW + offsetX;
+      const y = block.startY + r * block.cellH + offsetY;
+      const w = block.cellW - gap, h = block.cellH - gap;
+      lots.push({
+        id: `${prefix}-${id}`, displayId: id, section, tier: block.tier,
+        row: r, col: c,
+        points: [[x,y],[x+w,y],[x+w,y+h],[x,y+h]],
+        centroid: [x + w/2, y + h/2],
+      });
+      id++; placed++;
+    }
+  }
+  return lots;
+}
+function fromBlocks(section, prefix, blocks, offsetX = 0, offsetY = 0) {
+  let out = [], id = 1;
+  blocks.forEach(b => { const seg = gridBlock(section, prefix, id, b, offsetX, offsetY); out = out.concat(seg); id += seg.length; });
+  return out;
+}
+
+// Overlay cells are positioned to sit on the real lot clusters in the WHOLE MAP scan.
+// Lawn Lots (LL) — Phase-02 · Block-02 numbered grid + the two central LAWN LOT blocks.
+function generateLawnLots(offsetX = 0, offsetY = 0) {
+  return fromBlocks("ll", "ll", [
+    { tier:"REGULAR", startX:788,  startY:180, cols:11, rows:7, cellW:46, cellH:40, count:67 }, // Phase-02 · Block-02 grid
+    { tier:"PREMIUM", startX:1088, startY:468, cols:5,  rows:10, cellW:40, cellH:25, count:48 }, // LAWN LOT block A
+    { tier:"PRIME",   startX:1300, startY:468, cols:5,  rows:10, cellW:42, cellH:25, count:48 }, // LAWN LOT block B
+  ], offsetX, offsetY);
+}
+// Garden Lots (GL) — the two GARDEN LOT blocks (Phase 01, bottom-centre).
+function generateGardenLots(offsetX = 0, offsetY = 0) {
+  return fromBlocks("gl", "gl", [
+    { tier:"REGULAR", startX:1035, startY:840, cols:5, rows:6, cellW:42, cellH:45, count:26 },
+    { tier:"PREMIUM", startX:1262, startY:840, cols:5, rows:6, cellW:42, cellH:45, count:26 },
+  ], offsetX, offsetY);
+}
+// Family Estates (FE) — the FEP2 double row of perimeter lots along the top road.
+function generateFamilyEstates(offsetX = 0, offsetY = 0) {
+  return fromBlocks("fe", "fe", [
+    { tier:"PREMIUM", startX:185, startY:78, cols:21, rows:2, cellW:42, cellH:34, count:42, gap:5 },
+  ], offsetX, offsetY);
+}
+// Court Estates (CE) — premium row on the right (near Phase 03).
+function generateCourtEstates(offsetX = 0, offsetY = 0) {
+  return fromBlocks("ce", "ce", [
+    { tier:"PREMIUM", startX:1600, startY:1000, cols:4, rows:1, cellW:95, cellH:110, count:4, gap:12 },
+  ], offsetX, offsetY);
+}
+// Community Vaults (CV) — the vault/ossuary niche bank right of Gate 03.
+function generateCommunityVaults(offsetX = 0, offsetY = 0) {
+  return fromBlocks("cv", "cv", [
+    { tier:"REGULAR", startX:1155, startY:90, cols:22, rows:3, cellW:16, cellH:18, count:65, gap:2 },
+  ], offsetX, offsetY);
+}
+// Ossuary (OS) — niche grid top-right, by the Columbarium.
+function generateOssuary(offsetX = 0, offsetY = 0) {
+  return fromBlocks("os", "os", [
+    { tier:"REGULAR", startX:1600, startY:100, cols:5, rows:5, cellW:36, cellH:16, count:25, gap:2 },
+  ], offsetX, offsetY);
+}
+
+// ============ WORLD LAYOUT ============
+// Single shared canvas laid out to match the real D7 Bohol survey plan. Bounds are the
+// bounding box of each section's lots, so per-section views pan/zoom into that region.
+// Canvas = the real WHOLE MAP scan's pixel size, so overlay cells sit directly on the
+// survey image. Section bounds are the bounding box of each section's overlay cells.
+const WORLD = {
+  width: 2048,
+  height: 1346,
+  image: "heavensgate_assets/WHOLE MAP (1).jpeg",
+  sections: {
+    ll: { offsetX: 0, offsetY: 0, bounds: { x: 776,  y: 172, w: 742, h: 552 } },
+    gl: { offsetX: 0, offsetY: 0, bounds: { x: 1025, y: 830, w: 455, h: 288 } },
+    fe: { offsetX: 0, offsetY: 0, bounds: { x: 178,  y: 70,  w: 895, h: 84 } },
+    ce: { offsetX: 0, offsetY: 0, bounds: { x: 1000, y: 1176, w: 210, h: 54 } },
+    cv: { offsetX: 0, offsetY: 0, bounds: { x: 1147, y: 84,  w: 368, h: 66 } },
+    os: { offsetX: 0, offsetY: 0, bounds: { x: 1592, y: 94,  w: 200, h: 92 } },
+  },
+};
+
+const TREES_LL = [
+  {cx:90,cy:100,r:24,type:"shade"},{cx:300,cy:60,r:20,type:"ever"},{cx:520,cy:50,r:22,type:"shade"},
+  {cx:740,cy:55,r:20,type:"ever"},{cx:960,cy:60,r:24,type:"shade"},{cx:1140,cy:80,r:22,type:"shade"},
+  {cx:60,cy:300,r:22,type:"ever"},{cx:1160,cy:300,r:22,type:"shade"},{cx:60,cy:480,r:24,type:"shade"},
+  {cx:1160,cy:480,r:22,type:"ever"},
+];
+
+// ============ HELPERS ============
+// Status classification matches D7 Bohol Memorial Park's real definitions:
+// - Fully Paid:  DULY PAID whole amount
+// - Active:      Actively paying (recent payments)
+// - Delinquent:  Missed payments 60-180 days, has overdue balance
+// - Defaulted:   Long overdue (>180 days), likely to stop paying or abandon account
+// - Cancelled:   Due to small amount or non-payment, flagged as cancelled
+function recomputeStatus(record) {
+  if (!record) return "available";
+  // Manual states take precedence
+  if (record.status === "cancelled") return "cancelled";
+  if (!record.currentClientId) {
+    if ((record.history || []).length > 0 && record.status === "cancelled") return "cancelled";
+    return "available";
+  }
+  const paid = (record.payments||[]).filter(p=>!p.voided).reduce((s,p)=>s+Number(p.amount||0)-Number(p.discount||0),0);
+  // Fully paid
+  if (paid >= record.lotPrice && record.lotPrice > 0) return "paid";
+  // No payments yet → reserved
+  if (paid === 0) return "reserved";
+  // Find last payment date
+  const last = (record.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+  if (!last) return "reserved";
+  const days = (Date.now() - new Date(last.date).getTime())/(1000*60*60*24);
+  if (days > 180) return "defaulted";
+  if (days > 60)  return "delinquent";
+  return "active";
+}
+
+function netPaymentAmount(p) {
+  if (p.voided) return 0;
+  return Number(p.amount||0) - Number(p.discount||0);
+}
+
+function mulberry32(a){return function(){let t=(a+=0x6d2b79f5);t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+
+// ============ REAL D7 BOHOL DATA (from masterlist 05/03/2026) ============
+const REAL_CLIENTS = [{"n":"ASPILLA-KNIGHT, RUTH","t":"FE-PREMIUM","p":640000,"tm":60,"tp":11351.04,"ma":11351.0,"d":"2022-01-21"},{"n":"MENDOZA, CELESTE","t":"LL-REGULAR","p":50000,"tm":60,"tp":24043.2,"ma":923.75,"d":"2022-02-22"},{"n":"MENDOZA, CELESTE","t":"LL-REGULAR","p":50000,"tm":60,"tp":23043.2,"ma":923.75,"d":"2022-02-22"},{"n":"PILOTOS, MA. JUNAS J.","t":"LL-PRIME","p":60000,"tm":60,"tp":49824.78,"ma":1108.5,"d":"2022-03-04"},{"n":"CORDOVA, GENALYN MANDY","t":"LL-REGULAR","p":50000,"tm":60,"tp":11969.46,"ma":923.75,"d":"2022-03-07"},{"n":"PALAPAR, JULITA","t":"LL-REGULAR","p":50000,"tm":60,"tp":27055.199999999997,"ma":886.8,"d":"2022-04-05"},{"n":"LIMBAGA, JENNIFER","t":"LL-REGULAR","p":50000,"tm":60,"tp":2768.16,"ma":833.33,"d":"2022-04-25"},{"n":"LIMBAGA, JENNIFER","t":"LL-REGULAR","p":50000,"tm":60,"tp":2752.16,"ma":833.33,"d":"2022-04-25"},{"n":"KOEBE, DAISY M.","t":"GL-REGULAR","p":60000,"tm":60,"tp":49901.5,"ma":1000.0,"d":"2022-05-19"},{"n":"KOEBE, DAISY M.","t":"GL-REGULAR","p":60000,"tm":60,"tp":49901.5,"ma":1000.0,"d":"2022-05-19"},{"n":"ISRAEL, ELVIRA","t":"FE-PRIME","p":640000,"tm":42,"tp":323333.14,"ma":13452.38,"d":"2022-05-29"},{"n":"CEQUINA, MA. ESTRELLA","t":"GL-REGULAR","p":192000,"tm":60,"tp":73430.0,"ma":3547.2,"d":"2022-05-30"},{"n":"CENABRE, ZENAS","t":"LL-PRIME","p":60000,"tm":24,"tp":56000.0,"ma":2500.0,"d":"2022-06-15"},{"n":"YU, FEBBY GRACE","t":"LL-PRIME","p":60000,"tm":60,"tp":36080.0,"ma":1000.0,"d":"2022-06-20"},{"n":"PIEZAS, ERMELINDA","t":"LL-REGULAR","p":50000,"tm":36,"tp":8104.76,"ma":1309.0,"d":"2022-06-28"},{"n":"ALVAR, VERGINIA/MARYLOU","t":"LL-REGULAR","p":50000,"tm":60,"tp":18907.8,"ma":886.8,"d":"2022-06-30"},{"n":"PARAN, GINA","t":"GL-REGULAR","p":192000,"tm":60,"tp":107575.2,"ma":3547.2,"d":"2022-06-30"},{"n":"CUADERO, EVANGELINE","t":"FE-PREMIUM","p":640000,"tm":60,"tp":128150.0,"ma":11824.0,"d":"2022-07-06"},{"n":"LIBANTE, ANTONIA/MARIVEL LOR SANCHEZ","t":"GL-REGULAR","p":120000,"tm":42,"tp":46285.0,"ma":2857.14,"d":"2022-07-08"},{"n":"EBUA, LILIA","t":"GL-REGULAR","p":120000,"tm":42,"tp":35655.14,"ma":2857.14,"d":"2022-07-16"},{"n":"MARABILES, MA. MARLENE","t":"FE-PREMIUM","p":600000,"tm":60,"tp":309085.0,"ma":11085.0,"d":"2022-07-27"},{"n":"APLACADOR, ELENO","t":"LL-PRIME","p":56000,"tm":42,"tp":49960.0,"ma":1280.0,"d":"2022-08-06"},{"n":"MUGA, TEODORICO","t":"GL-PRIME","p":251000,"tm":42,"tp":139528.49,"ma":5976.19,"d":"2022-08-08"},{"n":"HIBALAY, MARK IAN","t":"GL-REGULAR","p":192000,"tm":60,"tp":176777.0,"ma":3547.75,"d":"2022-08-09"},{"n":"NACUA, OLYMPIA","t":"GL-REGULAR","p":120000,"tm":60,"tp":24354.0,"ma":2217.0,"d":"2022-08-12"},{"n":"APLACADOR, PEDRO JR.","t":"LL-PRIME","p":56000,"tm":42,"tp":49960.0,"ma":1280.0,"d":"2022-08-16"},{"n":"LUMAYOG, ROSANA","t":"FE-PREMIUM","p":640000,"tm":60,"tp":176648.0,"ma":11824.0,"d":"2022-08-22"},{"n":"MEDIDAS, NILO","t":"FE-PREMIUM","p":640000,"tm":60,"tp":319644.0,"ma":11824.0,"d":"2022-08-31"},{"n":"CUADERO, CAROLINE","t":"LL-PREMIUM","p":56000,"tm":42,"tp":12505.0,"ma":933.33,"d":"2022-09-01"},{"n":"CLEOFE, CRISTINA","t":"FE-PREMIUM","p":640000,"tm":42,"tp":480990.0,"ma":15238.0,"d":"2022-09-12"},{"n":"LUENGO, MARIANO","t":"LL-PREMIUM","p":56000,"tm":24,"tp":27000.0,"ma":1000.0,"d":"2022-09-16"},{"n":"AMANDORON, CASSANDRA EILLEN","t":"GL-REGULAR","p":192000,"tm":42,"tp":18300.0,"ma":4571.43,"d":"2022-09-30"},{"n":"GOLIS, JUNA","t":"LL-REGULAR","p":50000,"tm":42,"tp":4800.0,"ma":833.33,"d":"2022-09-30"},{"n":"BALOGO, ELVIE","t":"LL-REGULAR","p":50000,"tm":36,"tp":46900.0,"ma":1333.33,"d":"2022-10-01"},{"n":"ANDAL, OLIVER","t":"GL-REGULAR","p":192000,"tm":60,"tp":192000.0,"ma":0.0,"d":"2022-10-28"},{"n":"COSCOS, JENNIFER","t":"GL-REGULAR","p":192000,"tm":60,"tp":159300.0,"ma":3362.45,"d":"2022-11-26"},{"n":"BAGNOL, MARIA LUMEN","t":"CV","p":32500,"tm":36,"tp":26324.0,"ma":903.0,"d":"2022-11-29"},{"n":"BAGNOL, MARIA LUMEN","t":"LL-PRIME","p":60000,"tm":36,"tp":40696.0,"ma":1667.0,"d":"2022-11-29"},{"n":"RECENTE, MILA","t":"LL-PRIME","p":60000,"tm":60,"tp":42142.0,"ma":1109.0,"d":"2022-11-29"},{"n":"COS, JOAN","t":"OSSUARY","p":16000,"tm":24,"tp":4401.0,"ma":667.0,"d":"2022-11-30"},{"n":"COS, JOAN","t":"CV","p":32500,"tm":42,"tp":8192.0,"ma":773.81,"d":"2022-11-30"},{"n":"COS, JOAN","t":"CV","p":32500,"tm":42,"tp":7670.0,"ma":773.81,"d":"2022-11-30"},{"n":"ABULOC, MARISSA","t":"LL-REGULAR","p":50000,"tm":60,"tp":34894.8,"ma":886.8,"d":"2022-12-01"},{"n":"TAPAYAN, FE","t":"LL-REGULAR","p":50000,"tm":60,"tp":21000.0,"ma":924.0,"d":"2022-12-06"},{"n":"BAGARES, SHIELA MAE","t":"GL-REGULAR","p":192000,"tm":60,"tp":142266.0,"ma":3548.0,"d":"2022-12-10"},{"n":"RESULAR, JUNALYN","t":"GL-REGULAR","p":192000,"tm":60,"tp":147110.0,"ma":3547.75,"d":"2022-12-19"},{"n":"ALINSONORIN, LEABELETH","t":"FE-REGULAR","p":615000,"tm":60,"tp":3000.0,"ma":11306.7,"d":"2022-12-23"},{"n":"INGENTE, RALFE","t":"LL-REGULAR","p":50000,"tm":60,"tp":35872.0,"ma":924.0,"d":"2022-12-23"},{"n":"BERSAMINA, VIVIAN","t":"GL-PRIME","p":251000,"tm":42,"tp":177360.14,"ma":5737.14,"d":"2023-01-03"},{"n":"BARAHAN, ESTERLINA","t":"GL-PREMIUM","p":215000,"tm":60,"tp":19000.0,"ma":3973.0,"d":"2023-01-05"},{"n":"CABUG-OS GLICENDA","t":"GL-REGULAR","p":192000,"tm":60,"tp":84200.0,"ma":3200.0,"d":"2023-01-06"},{"n":"BILIRAN, FERMINO","t":"FE-PRIME","p":935000,"tm":60,"tp":450666.0,"ma":15583.33,"d":"2023-01-15"},{"n":"REYES, RICHELL","t":"LL-REGULAR","p":50000,"tm":60,"tp":32000.0,"ma":924.0,"d":"2023-01-26"},{"n":"EBUA, LILIA","t":"OSSUARY","p":16000,"tm":24,"tp":11667.0,"ma":667.0,"d":"2023-02-03"},{"n":"TORREJANO, RACHEL","t":"FE-PREMIUM","p":640000,"tm":60,"tp":169850.0,"ma":11824.0,"d":"2023-02-16"},{"n":"NIONES, FATIMA","t":"LL-REGULAR","p":50000,"tm":60,"tp":7278.0,"ma":924.0,"d":"2023-02-24"},{"n":"ENANORIA, MARIA VENUS","t":"FE-PREMIUM","p":640000,"tm":42,"tp":431000.0,"ma":15238.09,"d":"2023-02-27"},{"n":"NIONES, FATIMA","t":"OSSUARY","p":16000,"tm":24,"tp":6304.0,"ma":667.0,"d":"2023-02-28"},{"n":"MEDIDAS, ELVIRA","t":"LL-PRIME","p":60000,"tm":60,"tp":26608.5,"ma":1108.5,"d":"2023-03-03"},{"n":"ARGOTA, ANECITA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":23200.0,"ma":1035.0,"d":"2023-03-10"},{"n":"JUNASA, MARIA DEBBIE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":39600.0,"ma":1035.0,"d":"2023-03-10"},{"n":"RIBLE, MARINA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":48800.0,"ma":466.67,"d":"2023-03-10"},{"n":"MORAL, VIRGILIA","t":"LL-REGULAR","p":50000,"tm":60,"tp":27000.0,"ma":924.0,"d":"2023-03-18"},{"n":"ASPILLA, MARLOU JOAN","t":"FE-PREMIUM","p":640000,"tm":42,"tp":463964.0,"ma":15238.1,"d":"2023-03-27"},{"n":"BALO, GLORABEL","t":"LL-REGULAR","p":50000,"tm":60,"tp":7924.0,"ma":924.0,"d":"2023-04-03"},{"n":"DAGMANG, NATIVIDAD","t":"FE-PREMIUM","p":640000,"tm":60,"tp":335000.0,"ma":14642.85,"d":"2023-04-18"},{"n":"PAGE, JEANETTE","t":"FE-PRIME","p":935000,"tm":42,"tp":801431.9199999999,"ma":15238.1,"d":"2023-04-21"},{"n":"PAGE, JEANETTE","t":"FE-PREMIUM","p":640000,"tm":42,"tp":548604.04,"ma":15238.1,"d":"2023-04-21"},{"n":"PAGE, JEANETTE","t":"FE-PREMIUM","p":640000,"tm":42,"tp":548604.04,"ma":15238.1,"d":"2023-04-21"},{"n":"COSCOS, CORA","t":"LL-REGULAR","p":45000,"tm":36,"tp":40000.0,"ma":1250.0,"d":"2023-05-23"},{"n":"COSCOS, CORA","t":"LL-REGULAR","p":45000,"tm":36,"tp":40000.0,"ma":1250.0,"d":"2023-05-23"},{"n":"CANTONEROS, ROSETTE","t":"LL-REGULAR","p":45000,"tm":36,"tp":41250.0,"ma":1250.0,"d":"2023-05-24"},{"n":"ANDAL, GEMMA","t":"LL-PREMIUM","p":50400,"tm":36,"tp":7000.0,"ma":1400.0,"d":"2023-05-30"},{"n":"DEGOLLACION, MARIA LOIDA","t":"OTHER","p":108000,"tm":36,"tp":84000.0,"ma":3000.0,"d":"2023-05-31"},{"n":"MARCOJOS, DULCE","t":"FE-PREMIUM","p":640000,"tm":60,"tp":170000.0,"ma":11824.0,"d":"2023-05-31"},{"n":"SAMONTE, DIANE G.","t":"LL-REGULAR","p":45000,"tm":36,"tp":41250.0,"ma":1250.0,"d":"2023-05-31"},{"n":"ASTILLO, PELIGNERO","t":"FE-REGULAR","p":420460,"tm":42,"tp":242800.0,"ma":10010.95,"d":"2023-06-06"},{"n":"BADIANG, GLENDA","t":"LL-REGULAR","p":45000,"tm":36,"tp":22329.690000000002,"ma":1250.0,"d":"2023-06-07"},{"n":"OLAVIDES, DANILO","t":"LL-REGULAR","p":45000,"tm":36,"tp":8750.0,"ma":1250.0,"d":"2023-06-15"},{"n":"ROMERO, DENNIS","t":"LL-REGULAR","p":45000,"tm":36,"tp":10000.0,"ma":1250.0,"d":"2023-06-15"},{"n":"ALIPOYO, MARIA LUISA U.","t":"LL-REGULAR","p":45000,"tm":36,"tp":15300.0,"ma":1250.0,"d":"2023-06-19"},{"n":"ALIPOYO, MARIA LUISA U.","t":"LL-REGULAR","p":45000,"tm":36,"tp":15300.0,"ma":1250.0,"d":"2023-06-19"},{"n":"RADAM, JAY C.","t":"CV","p":29250,"tm":36,"tp":2584.0,"ma":812.5,"d":"2023-06-19"},{"n":"DE VERA, JOCELYN","t":"CV","p":26550,"tm":36,"tp":19250.5,"ma":737.5,"d":"2023-06-29"},{"n":"GENITA, MARYLOU","t":"LL-PRIME","p":54000,"tm":24,"tp":30906.0,"ma":2250.0,"d":"2023-06-30"},{"n":"INSON, JOVELYN","t":"LL-REGULAR","p":45000,"tm":36,"tp":4750.0,"ma":1250.0,"d":"2023-06-30"},{"n":"PALMA, ANECITO","t":"CV","p":26550,"tm":36,"tp":6825.0,"ma":737.5,"d":"2023-06-30"},{"n":"ITABLE, CECILIO","t":"FE-PRIME","p":915000,"tm":42,"tp":653580.0,"ma":21786.0,"d":"2023-07-31"},{"n":"ENOPIA, MARISSA P.","t":"FE-PREMIUM","p":640000,"tm":60,"tp":154000.0,"ma":11824.0,"d":"2023-08-22"},{"n":"ANDAL, GEMMA","t":"LL-PREMIUM","p":50400,"tm":36,"tp":10800.0,"ma":1400.0,"d":"2023-08-30"},{"n":"OMA\u00d1A, ELSA","t":"LL-PRIME","p":60000,"tm":60,"tp":12000.0,"ma":1000.0,"d":"2023-09-30"},{"n":"COSARE, MARICAR/VENERANDO COSARE III","t":"LL-REGULAR","p":47650,"tm":36,"tp":4000.0,"ma":1326.61,"d":"2023-10-02"},{"n":"MOLINA, ROXANNE MAE M.","t":"GL-REGULAR","p":192000,"tm":60,"tp":67300.0,"ma":3200.0,"d":"2023-11-06"},{"n":"WALOHAN, BENEDICTO","t":"FE-PREMIUM","p":640000,"tm":60,"tp":336000.0,"ma":10666.67,"d":"2023-11-20"},{"n":"ADECER, NELITA","t":"LL-REGULAR","p":50000,"tm":60,"tp":11050.0,"ma":833.33,"d":"2023-11-21"},{"n":"LLORENTE, RUFINA","t":"OSSUARY","p":16000,"tm":36,"tp":11000.0,"ma":444.44,"d":"2023-11-22"},{"n":"GULILAT, ARTEMIO","t":"FE-PRIME","p":935000,"tm":60,"tp":348000.0,"ma":15583.0,"d":"2023-11-30"},{"n":"SUMALINOG, JASON","t":"FE-PREMIUM","p":640000,"tm":60,"tp":88500.0,"ma":10666.67,"d":"2023-12-09"},{"n":"BULIGAN, ALAIN MARK/JOAN A.","t":"LL-PRIME","p":60000,"tm":36,"tp":45587.5,"ma":1587.5,"d":"2023-12-11"},{"n":"CONCHA, ROMEO","t":"FE-PRIME","p":935000,"tm":60,"tp":10000.0,"ma":15583.33,"d":"2023-12-13"},{"n":"MALEZA, CANDY PEARL","t":"LL-REGULAR","p":50000,"tm":60,"tp":770.0,"ma":0.0,"d":"2023-12-15"},{"n":"SMELLO, FLORIE MAE","t":"LL-REGULAR","p":50000,"tm":60,"tp":770.0,"ma":769.79,"d":"2023-12-15"},{"n":"TEVES, SHEILA","t":"LL-REGULAR","p":50000,"tm":60,"tp":770.0,"ma":769.79,"d":"2023-12-15"},{"n":"TEVES, SHEILA","t":"LL-REGULAR","p":50000,"tm":60,"tp":770.0,"ma":769.79,"d":"2023-12-15"},{"n":"MORALES, BOB/JERAH BOY","t":"LL-PRIME","p":63000,"tm":60,"tp":8000.0,"ma":1500.0,"d":"2023-12-19"},{"n":"RAGANAS, MARIFE","t":"LL-REGULAR","p":50000,"tm":60,"tp":23850.0,"ma":833.33,"d":"2023-12-22"},{"n":"WALOHAN, ANA MICHELLE","t":"LL-REGULAR","p":50000,"tm":60,"tp":23850.0,"ma":833.33,"d":"2023-12-22"},{"n":"CABUS, BEATRIZE","t":"FE-PRIME","p":640000,"tm":60,"tp":10000.0,"ma":0.0,"d":"2023-12-29"},{"n":"JAVATE, LEONISA","t":"LL-REGULAR","p":50000,"tm":42,"tp":13000.0,"ma":1131.0,"d":"2023-12-29"},{"n":"CATUBAG, JENNIFER","t":"GL-REGULAR","p":192000,"tm":72,"tp":63000.0,"ma":2956.0,"d":"2023-12-30"},{"n":"GUTIERREZ, LESTER R.","t":"GL-PRIME","p":251000,"tm":72,"tp":80000.0,"ma":3864.35,"d":"2023-12-30"},{"n":"RALLOS, MARISAN","t":"LL-PRIME","p":60000,"tm":60,"tp":14350.0,"ma":1000.0,"d":"2023-12-30"},{"n":"UY, MARIA ANNABELLE","t":"LL-PRIME","p":935000,"tm":60,"tp":495585.0,"ma":15583.33,"d":"2024-01-30"},{"n":"VELOSO, RIZZALYN/BOLIGAO RICARDO","t":"FE-REGULAR","p":615000,"tm":60,"tp":215000.0,"ma":10250.0,"d":"2024-02-24"},{"n":"YU, FEBBY GRACE","t":"CV","p":28125,"tm":36,"tp":12560.0,"ma":781.25,"d":"2024-03-07"},{"n":"TIRO, GINA","t":"LL-PRIME","p":60000,"tm":60,"tp":3000.0,"ma":1000.0,"d":"2024-03-11"},{"n":"GULILAT, ARTEMIO","t":"GL-REGULAR","p":192000,"tm":60,"tp":72000.0,"ma":3200.0,"d":"2024-03-25"},{"n":"BONJAN, VERONICA","t":"LL-REGULAR","p":50000,"tm":60,"tp":1900.0,"ma":833.33,"d":"2024-03-27"},{"n":"SIMPORIOS, LOLITA","t":"LL-PRIME","p":60000,"tm":60,"tp":14000.0,"ma":1000.0,"d":"2024-04-29"},{"n":"SIMPORIOS, LOLITA","t":"LL-PRIME","p":60000,"tm":60,"tp":14000.0,"ma":1000.0,"d":"2024-04-29"},{"n":"SIMPORIOS, LOLITA","t":"LL-PRIME","p":60000,"tm":60,"tp":14000.0,"ma":1000.0,"d":"2024-04-29"},{"n":"CALUNIA, ELLEN","t":"LL-PREMIUM","p":56000,"tm":60,"tp":500.0,"ma":933.33,"d":"2024-04-30"},{"n":"PILOTOS, VIOLETA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":1000.0,"ma":933.33,"d":"2024-04-30"},{"n":"WONG, KEITH SPENCER","t":"LL-REGULAR","p":50000,"tm":60,"tp":500.0,"ma":833.33,"d":"2024-04-30"},{"n":"CORDOVA, MA. KRISTINA/MARIA LOURDES","t":"LL-REGULAR","p":50000,"tm":60,"tp":20000.0,"ma":833.33,"d":"2024-05-06"},{"n":"CORDOVA, MA. KRISTINA/MARIA JOSEFA","t":"LL-REGULAR","p":50000,"tm":60,"tp":19661.0,"ma":833.33,"d":"2024-05-07"},{"n":"CORTEJOS, ORLANDO","t":"LL-PRIME","p":60000,"tm":60,"tp":24300.0,"ma":1000.0,"d":"2024-05-20"},{"n":"SUELLO, MA. CECILIA/JOSEPHINE BOUCHARD","t":"CE","p":640000,"tm":60,"tp":417538.78,"ma":10666.67,"d":"2024-05-31"},{"n":"MANTE, KAREN","t":"FE-PREMIUM","p":640000,"tm":36,"tp":414000.0,"ma":17777.78,"d":"2024-06-10"},{"n":"NADAL, CRISTY","t":"GL-REGULAR","p":192000,"tm":60,"tp":67400.0,"ma":3200.0,"d":"2024-06-11"},{"n":"CORPUZ, NENITA F","t":"GL-REGULAR","p":192000,"tm":60,"tp":10400.0,"ma":3200.0,"d":"2024-06-30"},{"n":"CAMBANGAY, MARY MYLA","t":"FE-PREMIUM","p":640000,"tm":60,"tp":224000.0,"ma":10667.67,"d":"2024-07-15"},{"n":"ADLAWAN, PRAXEDES","t":"LL-PRIME","p":60000,"tm":60,"tp":1000.0,"ma":1108.5,"d":"2024-07-19"},{"n":"CIFRA. MA. NELIA","t":"GL-REGULAR","p":192000,"tm":60,"tp":15000.0,"ma":3200.0,"d":"2024-08-01"},{"n":"DABLIO, SHERWIN MOORE","t":"LL-PRIME","p":60000,"tm":60,"tp":4000.0,"ma":1000.0,"d":"2024-08-10"},{"n":"LIBRES, MA. CHONA","t":"LL-PRIME","p":60000,"tm":60,"tp":9000.0,"ma":1000.0,"d":"2024-08-10"},{"n":"JAVATE, LEONISA","t":"LL-REGULAR","p":50000,"tm":42,"tp":13000.0,"ma":1131.0,"d":"2024-08-22"},{"n":"ANTIPORTA, MARY ANN, LAURO SR. AMANCIO III","t":"GL-PRIME","p":251000,"tm":60,"tp":92000.0,"ma":4183.33,"d":"2024-08-24"},{"n":"ANTIPORTA, ROSENDA/LAURO SR","t":"GL-PRIME","p":251000,"tm":60,"tp":44000.0,"ma":4183.33,"d":"2024-08-30"},{"n":"COSARE, DASIY","t":"LL-PRIME","p":60000,"tm":60,"tp":3000.0,"ma":1000.0,"d":"2024-08-31"},{"n":"LEBITA, ALLEN MAE/ABULOC, LUIS","t":"LL-PREMIUM","p":50000,"tm":72,"tp":2310.0,"ma":769.79,"d":"2024-08-31"},{"n":"LEBITA, MIRALUNA","t":"LL-PRIME","p":60000,"tm":60,"tp":3000.0,"ma":1000.0,"d":"2024-08-31"},{"n":"MAXILOM, EDGARDO S.","t":"LL-PRIME","p":60000,"tm":60,"tp":21000.0,"ma":1000.0,"d":"2024-09-05"},{"n":"ALBURA, NEMESIO","t":"GL-PRIME","p":32500,"tm":36,"tp":5000.0,"ma":902.78,"d":"2024-09-19"},{"n":"OHLHAUSEN, NILA","t":"CV","p":32500,"tm":36,"tp":15000.0,"ma":902.78,"d":"2024-09-19"},{"n":"PACLIBAR, MA. WILMA","t":"CV","p":29500,"tm":42,"tp":10000.0,"ma":702.38,"d":"2024-09-19"},{"n":"ABARQUEZ, ALEJANDRO","t":"GL-REGULAR","p":192000,"tm":60,"tp":25000.0,"ma":3200.0,"d":"2024-09-20"},{"n":"COS, FAITH ANN","t":"GL-REGULAR","p":192000,"tm":60,"tp":51200.0,"ma":3200.0,"d":"2024-09-22"},{"n":"DELGADO, SARAH","t":"GL-REGULAR","p":192000,"tm":60,"tp":51500.0,"ma":3200.0,"d":"2024-09-22"},{"n":"ESCALERA, BABELYN","t":"LL-REGULAR","p":60000,"tm":60,"tp":19000.0,"ma":1000.0,"d":"2024-09-24"},{"n":"ADTUON, FLAVIANO","t":"FE-PRIME","p":935000,"tm":60,"tp":193200.0,"ma":15583.33,"d":"2024-09-28"},{"n":"ESCALERA, BABELYN","t":"LL-REGULAR","p":60000,"tm":60,"tp":19000.0,"ma":1000.0,"d":"2024-09-28"},{"n":"PATAC, MARIA WILMA","t":"CE","p":640000,"tm":60,"tp":238300.0,"ma":10666.67,"d":"2024-10-01"},{"n":"ESCALERA, AMELIA","t":"FE-PREMIUM","p":640000,"tm":60,"tp":202760.0,"ma":10666.67,"d":"2024-10-02"},{"n":"RUBEN, IAN RICHE/MARY ANN","t":"FE-PRIME","p":935000,"tm":60,"tp":288000.0,"ma":15583.33,"d":"2024-10-08"},{"n":"COSARE, BUENAVENTURA","t":"LL-REGULAR","p":50000,"tm":60,"tp":38500.0,"ma":833.33,"d":"2024-10-14"},{"n":"COSARE, BUENAVENTURA","t":"LL-REGULAR","p":50000,"tm":60,"tp":38500.0,"ma":833.33,"d":"2024-10-14"},{"n":"CIFRA, MARINA/ELUETERIO","t":"LL-REGULAR","p":50000,"tm":60,"tp":15500.0,"ma":833.33,"d":"2024-10-21"},{"n":"GOLIS, ROSALINA C","t":"CV","p":29500,"tm":32,"tp":16250.0,"ma":702.38,"d":"2024-10-21"},{"n":"BELIDA, MARIBEL","t":"LL-PREMIUM","p":56000,"tm":60,"tp":2500.0,"ma":933.33,"d":"2024-11-01"},{"n":"BELIDA, MARIBEL","t":"LL-PREMIUM","p":56000,"tm":60,"tp":2500.0,"ma":933.33,"d":"2024-11-01"},{"n":"BOJA, JOANNA MAE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":15000.0,"ma":933.33,"d":"2024-11-01"},{"n":"CATAYAS, BASILIO","t":"CV","p":32500,"tm":36,"tp":19014.78,"ma":902.78,"d":"2024-11-01"},{"n":"CATAYAS, BASILIO","t":"LL-PREMIUM","p":56000,"tm":42,"tp":21650.78,"ma":933.33,"d":"2024-11-01"},{"n":"HOPIDA, MARIA PAQUITA/CORTEJOS, ORLANDO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":17300.0,"ma":933.33,"d":"2024-11-01"},{"n":"HOPIDA, MARIA PAQUITA/CORTEJOS, ORLANDO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":15400.0,"ma":933.33,"d":"2024-11-01"},{"n":"MU\u00d1EZ, MICHELLE","t":"LL-REGULAR","p":50000,"tm":60,"tp":15058.0,"ma":833.33,"d":"2024-11-01"},{"n":"TORREJANO, ROMEO","t":"GL-REGULAR","p":192000,"tm":60,"tp":59000.0,"ma":3200.0,"d":"2024-11-02"},{"n":"AGA-ON, JUPITO","t":"GL-PREMIUM","p":215000,"tm":60,"tp":69000.0,"ma":3583.33,"d":"2024-11-04"},{"n":"ALMONTE, ULYSSES/MARIA VILMA","t":"CV","p":32500,"tm":42,"tp":6822.0,"ma":773.9,"d":"2024-11-04"},{"n":"BASILAN, PETER/MA. ALMA","t":"CV","p":32500,"tm":42,"tp":3500.0,"ma":773.9,"d":"2024-11-04"},{"n":"MAUSISA, EDWIN/MARISSA","t":"FE-PREMIUM","p":640000,"tm":60,"tp":185800.0,"ma":10666.67,"d":"2024-11-09"},{"n":"PILONGO, ROMANO/CLEOFE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":8500.0,"ma":933.33,"d":"2024-11-11"},{"n":"MILLORIA, CHONA","t":"CV","p":29500,"tm":42,"tp":16500.0,"ma":819.44,"d":"2024-11-12"},{"n":"MILLORIA, CHONA","t":"CV","p":29500,"tm":42,"tp":16500.0,"ma":819.44,"d":"2024-11-12"},{"n":"DAG-UM, MADONNA/CHRISTOPER","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11500.0,"ma":933.33,"d":"2024-11-14"},{"n":"DAG-UM, MADONNA/CHRISTOPER","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11500.0,"ma":933.33,"d":"2024-11-14"},{"n":"REYES, ALEJANDRA","t":"GL-REGULAR","p":192000,"tm":60,"tp":29000.0,"ma":3200.0,"d":"2024-11-27"},{"n":"CABARUBIAS, JEFF ERIC","t":"LL-PREMIUM","p":56000,"tm":60,"tp":19000.0,"ma":933.33,"d":"2024-12-02"},{"n":"ESCALERA, ALMA","t":"GL-PREMIUM","p":215000,"tm":60,"tp":26182.480000000003,"ma":3972.13,"d":"2024-12-06"},{"n":"DELA VICTORIA, VIVIAN/JESUS ROMEO","t":"GL-PREMIUM","p":215000,"tm":60,"tp":23000.0,"ma":3583.33,"d":"2024-12-09"},{"n":"CABARUBIAS, JEFF IVAN","t":"LL-PREMIUM","p":56000,"tm":60,"tp":16000.0,"ma":933.33,"d":"2024-12-12"},{"n":"CABARUBIAS, JEFF MARLON","t":"LL-PREMIUM","p":56000,"tm":60,"tp":12000.0,"ma":933.33,"d":"2024-12-12"},{"n":"CAGA, TITA","t":"CV","p":32500,"tm":36,"tp":30400.0,"ma":1354.17,"d":"2024-12-16"},{"n":"BAGSOLING, RACHEL","t":"OSSUARY","p":21000,"tm":12,"tp":14000.0,"ma":1750.0,"d":"2024-12-18"},{"n":"MEDIDAS, ELVIRA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":5900.0,"ma":933.33,"d":"2024-12-19"},{"n":"BATAUSA, MELCHORA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":14000.0,"ma":933.33,"d":"2024-12-20"},{"n":"ASTILLO, TERESITA","t":"LL-REGULAR","p":50000,"tm":60,"tp":28847.0,"ma":833.33,"d":"2024-12-22"},{"n":"COSARE, VIRGINIA/CHAD","t":"LL-REGULAR","p":50000,"tm":60,"tp":15000.0,"ma":833.33,"d":"2024-12-22"},{"n":"RESTAURO, CHONA","t":"LL-REGULAR","p":50000,"tm":60,"tp":15000.0,"ma":833.33,"d":"2024-12-22"},{"n":"SUBRADO, CRISTINE","t":"LL-REGULAR","p":50000,"tm":60,"tp":15000.0,"ma":833.33,"d":"2024-12-22"},{"n":"LABRADOR, ALICE","t":"GL-PREMIUM","p":215000,"tm":60,"tp":48800.0,"ma":3583.33,"d":"2024-12-24"},{"n":"MUNEZ, MARIANITA","t":"LL-REGULAR","p":50000,"tm":60,"tp":15000.0,"ma":833.33,"d":"2024-12-24"},{"n":"ALCANSARIN, EMELIE","t":"CV","p":32500,"tm":36,"tp":15000.0,"ma":902.78,"d":"2024-12-27"},{"n":"PIEZAS, MADELYN","t":"GL-REGULAR","p":192000,"tm":42,"tp":54800.0,"ma":3200.0,"d":"2024-12-27"},{"n":"ALCANSARIN, MARITES","t":"LL-REGULAR","p":50000,"tm":60,"tp":15100.0,"ma":833.33,"d":"2024-12-30"},{"n":"LEBITA, DELIA/CYRIL","t":"LL-PREMIUM","p":56000,"tm":60,"tp":1000.0,"ma":933.33,"d":"2024-12-30"},{"n":"MALINAO, SUSAN/FEBBIE RUTH","t":"LL-REGULAR","p":50000,"tm":60,"tp":15000.0,"ma":833.33,"d":"2024-12-30"},{"n":"ANGA, FEDERICK","t":"FE-PRIME","p":935000,"tm":60,"tp":6000.0,"ma":15583.33,"d":"2025-01-08"},{"n":"BONJAN, VERONICA","t":"GL-REGULAR","p":192000,"tm":60,"tp":6000.0,"ma":3200.0,"d":"2025-01-08"},{"n":"CABATINGAN, MA. SONIA","t":"OSSUARY","p":16800,"tm":36,"tp":1000.0,"ma":466.67,"d":"2025-01-15"},{"n":"ASUBAR, SHARON","t":"LL-PREMIUM","p":56000,"tm":3,"tp":6000.0,"ma":933.33,"d":"2025-01-19"},{"n":"POQUITA, LILIBETH","t":"LL-REGULAR","p":50000,"tm":60,"tp":8000.0,"ma":833.33,"d":"2025-01-21"},{"n":"ALCANSARIN, MARITES","t":"OSSUARY","p":16000,"tm":36,"tp":13500.0,"ma":444.44,"d":"2025-01-27"},{"n":"ALCANSARIN, MARITES","t":"OSSUARY","p":16000,"tm":36,"tp":13600.0,"ma":444.44,"d":"2025-01-27"},{"n":"PAMA, LAURICE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":15000.0,"ma":933.33,"d":"2025-01-27"},{"n":"ASOMBRADO, CARLO JOHN/SUZETTE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":10000.0,"ma":933.33,"d":"2025-02-05"},{"n":"MARABULAS, MARY JEAN","t":"CV","p":29500,"tm":42,"tp":12000.0,"ma":702.38,"d":"2025-02-16"},{"n":"GOLIS, ROSALINA C","t":"CV","p":29500,"tm":36,"tp":19750.0,"ma":702.38,"d":"2025-02-17"},{"n":"MULA, HERNANDO","t":"OSSUARY","p":16000,"tm":24,"tp":2400.0,"ma":444.44,"d":"2025-02-17"},{"n":"DOVERTE, ERLINDA MARIA","t":"CV","p":29500,"tm":60,"tp":3800.0,"ma":702.38,"d":"2025-02-25"},{"n":"FELICIA, CHARIE MAE","t":"CV","p":29500,"tm":24,"tp":10479.0,"ma":1229.17,"d":"2025-03-01"},{"n":"FELICIA, CHARIE MAE","t":"CV","p":29500,"tm":24,"tp":10479.0,"ma":1229.17,"d":"2025-03-01"},{"n":"ABULOC, LUIS","t":"LL-PREMIUM","p":56000,"tm":60,"tp":14000.0,"ma":933.33,"d":"2025-03-08"},{"n":"TACANDONG, PAMELA","t":"CV","p":32500,"tm":60,"tp":6300.0,"ma":773.81,"d":"2025-03-10"},{"n":"TACANDONG, PAMELA","t":"CV","p":32500,"tm":60,"tp":6300.0,"ma":773.81,"d":"2025-03-10"},{"n":"CATUBAG, LEONILA","t":"CV","p":32500,"tm":36,"tp":8000.0,"ma":902.78,"d":"2025-03-13"},{"n":"BAQUIAL. MARK TOMMY","t":"CV","p":32500,"tm":42,"tp":2600.0,"ma":773.81,"d":"2025-03-31"},{"n":"CORBITA, JULIET","t":"LL-REGULAR","p":50000,"tm":60,"tp":16695.0,"ma":833.33,"d":"2025-03-31"},{"n":"DOLIO, KLEO FIDENCIO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11800.0,"ma":933.33,"d":"2025-04-02"},{"n":"PIEZAS, LUCILA","t":"FE-PRIME","p":935000,"tm":60,"tp":101300.0,"ma":17274.13,"d":"2025-04-02"},{"n":"PIEZAS, LUCILA","t":"FE-PRIME","p":935000,"tm":60,"tp":17300.0,"ma":17274.13,"d":"2025-04-02"},{"n":"BAQUIAL. MARIA/MARVIN","t":"CV","p":32500,"tm":42,"tp":1700.0,"ma":773.81,"d":"2025-04-05"},{"n":"ANGA, MAT EDWARD/LOVELY","t":"LL-PREMIUM","p":56000,"tm":60,"tp":7550.0,"ma":933.33,"d":"2025-04-13"},{"n":"ANGA, MAT EDWARD/LOVELY","t":"LL-PREMIUM","p":56000,"tm":60,"tp":7550.0,"ma":933.33,"d":"2025-04-13"},{"n":"CALAPE, KRESHIA MAE/MAMBERTO","t":"CV","p":32500,"tm":42,"tp":10100.0,"ma":773.81,"d":"2025-04-14"},{"n":"DELGADO, MA. BELEN/MONGUIHO, JOSIE","t":"LL-PREMIUM","p":56000,"tm":36,"tp":7600.0,"ma":1555.56,"d":"2025-04-14"},{"n":"MULA, KYCILYN","t":"LL-REGULAR","p":50000,"tm":60,"tp":6500.0,"ma":924.0,"d":"2025-05-15"},{"n":"CANO, MONINA","t":"LL-REGULAR","p":50000,"tm":60,"tp":13000.0,"ma":833.33,"d":"2025-05-17"},{"n":"CANO, MONINA","t":"LL-REGULAR","p":50000,"tm":60,"tp":13000.0,"ma":833.33,"d":"2025-05-17"},{"n":"JAUM, MINNIE","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11199.960000000001,"ma":933.33,"d":"2025-05-22"},{"n":"TUQUIB, DAISY/ROGER","t":"LL-REGULAR","p":50000,"tm":60,"tp":9000.0,"ma":833.33,"d":"2025-05-22"},{"n":"SATO, ELAISA MAE","t":"CV","p":29500,"tm":42,"tp":1500.0,"ma":702.38,"d":"2025-05-25"},{"n":"SATO, ELAISA MAE","t":"CV","p":29500,"tm":42,"tp":1500.0,"ma":702.38,"d":"2025-05-25"},{"n":"VIRAY, MITHI","t":"LL-PREMIUM","p":56000,"tm":60,"tp":13850.0,"ma":933.33,"d":"2025-05-30"},{"n":"MOLOS, NATHAN","t":"LL-REGULAR","p":50000,"tm":42,"tp":13200.0,"ma":1190.5,"d":"2025-05-31"},{"n":"GENITA, ELMER","t":"GL-PRIME","p":251000,"tm":42,"tp":60000.0,"ma":5976.19,"d":"2025-06-01"},{"n":"CEREZO, FEROSVICA/ARTURO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11000.0,"ma":933.33,"d":"2025-06-02"},{"n":"RECTO, GODELIA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":11000.0,"ma":933.33,"d":"2025-06-02"},{"n":"NARAGA, MA. NANETH","t":"LL-REGULAR","p":50000,"tm":60,"tp":12000.0,"ma":1190.5,"d":"2025-06-04"},{"n":"BELTRAN, MA. GRETEL","t":"GL-REGULAR","p":192000,"tm":60,"tp":28200.0,"ma":3200.0,"d":"2025-06-07"},{"n":"ALBISO, PONCELITA/EDILBERTO","t":"LL-PREMIUM","p":56000,"tm":36,"tp":18666.72,"ma":1555.56,"d":"2025-06-11"},{"n":"CELI, JIZZA","t":"GL-PREMIUM","p":215000,"tm":60,"tp":28954.0,"ma":3583.33,"d":"2025-06-30"},{"n":"SINGCOL, ANA ROISE/ARTHUR","t":"CV","p":32500,"tm":42,"tp":2850.0,"ma":773.81,"d":"2025-07-05"},{"n":"SINGCOL, ANA ROISE/ARTHUR","t":"CV","p":32500,"tm":42,"tp":2850.0,"ma":773.81,"d":"2025-07-05"},{"n":"BUGA, ADELITO/SHEILA MAE","t":"LL-REGULAR","p":50000,"tm":60,"tp":9000.0,"ma":833.33,"d":"2025-07-08"},{"n":"LANZADERAS, EMERLITA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":3000.0,"ma":1034.6,"d":"2025-07-09"},{"n":"REYES, JERAMIE/JASPER","t":"GL-PREMIUM","p":215000,"tm":60,"tp":23000.0,"ma":3583.33,"d":"2025-07-22"},{"n":"MARTINEAZ, RACHEL","t":"FE-REGULAR","p":615000,"tm":60,"tp":92250.0,"ma":10250.0,"d":"2025-07-28"},{"n":"ROSCO, FELIXBERTO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":7700.0,"ma":933.33,"d":"2025-07-30"},{"n":"LEBITA, OROSIA/NARCISO","t":"LL-PREMIUM","p":56000,"tm":36,"tp":9520.0,"ma":1555.56,"d":"2025-07-31"},{"n":"FOLEY, MARIA JONA","t":"GL-REGULAR","p":192000,"tm":60,"tp":25600.0,"ma":3200.0,"d":"2025-08-09"},{"n":"MANTE, KAREN","t":"CV","p":32500,"tm":42,"tp":3500.0,"ma":773.81,"d":"2025-08-09"},{"n":"OLOFERNES, SUSIE","t":"LL-REGULAR","p":50000,"tm":60,"tp":6000.0,"ma":924.0,"d":"2025-08-18"},{"n":"ESPEJO, MELANIE, MARIE/ADLAWAN","t":"GL-PRIME","p":251000,"tm":60,"tp":33400.0,"ma":4183.33,"d":"2025-08-24"},{"n":"ESPEJO, MELANIE, MARIE/ADLAWAN","t":"GL-PRIME","p":251000,"tm":60,"tp":33400.0,"ma":4183.33,"d":"2025-08-24"},{"n":"BALILI, ISABEL/CRSTINE","t":"GL-PREMIUM","p":215000,"tm":60,"tp":12450.0,"ma":3583.33,"d":"2025-08-29"},{"n":"CODILLA, GABRIEL","t":"GL-PREMIUM","p":215000,"tm":60,"tp":13500.0,"ma":3583.33,"d":"2025-09-03"},{"n":"ALBURA, RHODORA","t":"LL-REGULAR","p":50000,"tm":36,"tp":7000.0,"ma":833.33,"d":"2025-09-06"},{"n":"CUADERO, RENATO","t":"CV","p":29500,"tm":42,"tp":4200.0,"ma":702.38,"d":"2025-09-06"},{"n":"BALAGA, MERIAM","t":"FE-PREMIUM","p":640000,"tm":60,"tp":39000.0,"ma":11824.0,"d":"2025-09-08"},{"n":"BUGA, SHEILA MAE/CALUNIA/         , GLECERIO","t":"LL-REGULAR","p":50000,"tm":60,"tp":5880.0,"ma":833.33,"d":"2025-09-18"},{"n":"OPALLA, CECILIA/ERECA","t":"CV","p":32500,"tm":36,"tp":2000.0,"ma":902.78,"d":"2025-09-18"},{"n":"OPALLA, CECILIA/ERECA","t":"CV","p":32500,"tm":36,"tp":2000.0,"ma":902.78,"d":"2025-09-18"},{"n":"ASOMBRADO, JOVELYN/RENATO","t":"LL-REGULAR","p":50000,"tm":60,"tp":8000.0,"ma":833.33,"d":"2025-09-28"},{"n":"DEBULGADO, MIRASOL/LEO","t":"LL-PREMIUM","p":56000,"tm":60,"tp":7000.0,"ma":933.33,"d":"2025-10-04"},{"n":"AUDITOR, SEVERENA","t":"LL-REGULAR","p":50000,"tm":60,"tp":5022.0,"ma":833.33,"d":"2025-10-11"},{"n":"BANSAG, AVELINO","t":"CV","p":32500,"tm":42,"tp":4900.0,"ma":774.81,"d":"2025-10-14"},{"n":"CUADERO, RENATO","t":"CV","p":29500,"tm":42,"tp":4300.0,"ma":702.38,"d":"2025-10-14"},{"n":"PALMA,CHARITA/ ANECITO","t":"CV","p":29500,"tm":42,"tp":3850.0,"ma":702.38,"d":"2025-10-14"},{"n":"SAMONTE, DIANE G./RERIC","t":"CV","p":29500,"tm":42,"tp":4200.0,"ma":702.38,"d":"2025-10-16"},{"n":"RALLOS, MARISAN","t":"LL-PRIME","p":75000,"tm":60,"tp":3750.0,"ma":1250.0,"d":"2025-10-21"},{"n":"GADIAN, JORGE/JHEROME/MANILLE JOY","t":"GL-REGULAR","p":192000,"tm":60,"tp":8000.0,"ma":3200.0,"d":"2025-10-23"},{"n":"SAGARINO, ROSEMARIE","t":"GL-PRIME","p":251000,"tm":60,"tp":44000.0,"ma":4183.33,"d":"2025-10-23"},{"n":"VILLAVER, MA. FURIZA/JULIUS","t":"FE-PRIME","p":935000,"tm":60,"tp":120000.0,"ma":15583.33,"d":"2025-10-23"},{"n":"MONTIBON, RUFO/MA. DOLORES","t":"OSSUARY","p":16000,"tm":36,"tp":950.0,"ma":444.44,"d":"2025-10-27"},{"n":"MONTIBON, RUFO/MA. DOLORES","t":"LL-PREMIUM","p":56000,"tm":60,"tp":1884.0,"ma":933.33,"d":"2025-10-27"},{"n":"OPSIMA, LOILA LOU","t":"LL-PREMIUM","p":56000,"tm":42,"tp":1333.33,"ma":1333.33,"d":"2025-10-27"},{"n":"OPSIMA, LOILA LOU","t":"LL-REGULAR","p":50000,"tm":42,"tp":1190.48,"ma":1190.48,"d":"2025-10-27"},{"n":"CABERTE, MA. WINZETTE/MARIA SUZETTE","t":"CV","p":32500,"tm":42,"tp":4273.0,"ma":773.0,"d":"2025-10-31"},{"n":"CABERTE, MA. WINZETTE/MARIA SUZETTE","t":"CV","p":32500,"tm":42,"tp":3750.0,"ma":773.0,"d":"2025-10-31"},{"n":"COS, AMADORA","t":"OTHER","p":103520,"tm":60,"tp":8500.0,"ma":1725.33,"d":"2025-10-31"},{"n":"AMIGO, BERNARDITO","t":"LL-REGULAR","p":50000,"tm":60,"tp":21000.0,"ma":833.33,"d":"2025-11-02"},{"n":"SEGURIGAN, SALUD","t":"OSSUARY","p":16800,"tm":36,"tp":1500.0,"ma":466.67,"d":"2025-11-03"},{"n":"BANSAG, AVELINO","t":"CV","p":32500,"tm":42,"tp":4900.0,"ma":773.81,"d":"2025-11-10"},{"n":"BURNS, MARIA MERLYN","t":"FE-PREMIUM","p":640000,"tm":60,"tp":100000.0,"ma":10666.67,"d":"2025-11-14"},{"n":"GALLO, DANTE","t":"GL-REGULAR","p":192000,"tm":60,"tp":7700.0,"ma":3200.0,"d":"2025-11-24"},{"n":"BENIGA, MARIA FE","t":"FE-PREMIUM","p":640000,"tm":60,"tp":105000.0,"ma":10666.67,"d":"2025-12-17"},{"n":"DE VERA, ANNALIZA/DELA TORRE, ANN JOREN JAY","t":"GL-PREMIUM","p":215000,"tm":60,"tp":18500.0,"ma":3583.33,"d":"2025-12-19"},{"n":"CALUNIA, ROSALIE","t":"LL-REGULAR","p":50000,"tm":60,"tp":4000.0,"ma":833.33,"d":"2025-12-29"},{"n":"CALUNIA, ROSALIE","t":"LL-REGULAR","p":50000,"tm":60,"tp":4000.0,"ma":833.33,"d":"2025-12-29"},{"n":"CALUNIA, ROSALIE","t":"LL-REGULAR","p":50000,"tm":60,"tp":4000.0,"ma":833.33,"d":"2025-12-29"},{"n":"CALUNIA, VILLA RIZZA/GILBERT/MARIA ISABELLE","t":"LL-REGULAR","p":50000,"tm":60,"tp":13000.0,"ma":833.33,"d":"2025-12-29"},{"n":"CALUNIA, VILLA RIZZA/GILBERT/MARIA ISABELLE","t":"LL-REGULAR","p":50000,"tm":60,"tp":13000.0,"ma":833.33,"d":"2025-12-29"},{"n":"MIRADORES, LOLITA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":1950.0,"ma":933.33,"d":"2025-12-29"},{"n":"MIRADORES, LOLITA","t":"LL-PREMIUM","p":56000,"tm":60,"tp":1950.0,"ma":933.33,"d":"2025-12-29"},{"n":"MIRADORES, LOLITA","t":"OSSUARY","p":21000,"tm":36,"tp":1200.0,"ma":583.83,"d":"2025-12-29"},{"n":"MORALES, BOB","t":"LL-PREMIUM","p":56000,"tm":60,"tp":4000.0,"ma":933.33,"d":"2025-12-30"},{"n":"BASLAN, ROSALIA/DUPA, APOLINARIA","t":"CV","p":34125,"tm":36,"tp":8000.0,"ma":947.92,"d":"2026-01-08"},{"n":"BLANTUCAS, AGUSTINA","t":"CV","p":34125,"tm":36,"tp":4000.0,"ma":947.92,"d":"2026-01-08"},{"n":"FUENTES, AMOR/ANECITO","t":"CV","p":34125,"tm":42,"tp":1300.0,"ma":812.5,"d":"2026-01-21"},{"n":"FUENTES, AMOR/ANECITO","t":"CV","p":34125,"tm":42,"tp":1300.0,"ma":812.5,"d":"2026-01-21"},{"n":"FUENTES, AMOR/ANECITO","t":"CV","p":34125,"tm":42,"tp":1300.0,"ma":812.5,"d":"2026-01-21"},{"n":"LIBANTE, ANTONIA","t":"FE-PREMIUM","p":530050,"tm":42,"tp":15000.0,"ma":12620.24,"d":"2026-01-21"},{"n":"LIBANTE, ANTONIA","t":"CV","p":22988,"tm":42,"tp":1028.0,"ma":547.36,"d":"2026-01-21"},{"n":"RECONES, MA. SOCORRO","t":"LL-REGULAR","p":50000,"tm":60,"tp":4190.0,"ma":1388.88,"d":"2026-01-27"},{"n":"ENRIQUEZ, DANILO/BROK, DANEZA","t":"CV","p":34125,"tm":42,"tp":2000.0,"ma":812.5,"d":"2026-01-28"},{"n":"LIBANTE, GINA","t":"OSSUARY","p":22050,"tm":36,"tp":1800.0,"ma":612.5,"d":"2026-01-29"},{"n":"ORCULLO, LYDIA","t":"OSSUARY","p":16800,"tm":36,"tp":1000.0,"ma":466.67,"d":"2026-01-31"},{"n":"RAGANAS, JOSHUA FERDY","t":"LL-REGULAR","p":52500,"tm":42,"tp":3750.0,"ma":1250.0,"d":"2026-01-31"},{"n":"REMOTCHA, MA. VANESSA","t":"CV","p":34125,"tm":60,"tp":2000.0,"ma":34125.0,"d":"2026-01-31"},{"n":"RICAFORT, CLARIS E.","t":"CV","p":34125,"tm":42,"tp":500.0,"ma":812.5,"d":"2026-02-06"},{"n":"WEIL, MYLA","t":"LL-PREMIUM","p":58800,"tm":42,"tp":2000.0,"ma":1400.0,"d":"2026-02-10"},{"n":"WEIL, MYLA","t":"LL-PREMIUM","p":58800,"tm":42,"tp":2000.0,"ma":1400.0,"d":"2026-02-10"},{"n":"AUZA, JERALYN","t":"CE-PREMIUM","p":672000,"tm":60,"tp":35000.0,"ma":12415.2,"d":"2026-02-14"},{"n":"CELI, JIZZA","t":"CV","p":30922,"tm":60,"tp":25000.0,"ma":10461.25,"d":"2026-02-16"},{"n":"DEAN, ALETH","t":"LL-PREMIUM","p":58800,"tm":24,"tp":15000.0,"ma":2241.66,"d":"2026-02-24"},{"n":"DEAN, ALETH","t":"LL-PREMIUM","p":58800,"tm":24,"tp":15000.0,"ma":2241.66,"d":"2026-02-24"},{"n":"SUAYBAGUIO, DELIA","t":"GL-REGULAR","p":192000,"tm":60,"tp":5200.0,"ma":3200.0,"d":"2026-02-24"},{"n":"CABILAN, RODOLFO","t":"LL-REGULAR","p":52500,"tm":60,"tp":2000.0,"ma":969.94,"d":"2026-03-02"},{"n":"REMULTA, JASON","t":"LL-REGULAR","p":52500,"tm":60,"tp":1000.0,"ma":969.94,"d":"2026-03-13"},{"n":"RONTALO, FELISA/NEPTALI","t":"LL-PREMIUM","p":58800,"tm":60,"tp":3000.0,"ma":1086.33,"d":"2026-03-17"},{"n":"OPALLA, ERECA","t":"LL-PREMIUM","p":58800,"tm":42,"tp":1000.0,"ma":1400.0,"d":"2026-03-29"},{"n":"FERMO, ELIZABETH S.","t":"LL-REGULAR","p":52500,"tm":42,"tp":1000.0,"ma":1250.0,"d":"2026-04-09"},{"n":"LOMA-AD, PAULETTE MARCIA","t":"LL-REGULAR","p":52500,"tm":42,"tp":1000.0,"ma":1250.0,"d":"2026-04-09"},{"n":"ANGA, MIRAFLOR","t":"LL-PREMIUM","p":56000,"tm":60,"tp":12000.0,"ma":933.33,"d":"2026-04-28"},{"n":"MOSQUERA, MA, ANGELITA","t":"LL-REGULAR","p":50000,"tm":60,"tp":11000.0,"ma":833.33,"d":"2026-05-07"},{"n":"REYES, MAECELLIZA","t":"OSSUARY","p":16800,"tm":36,"tp":3000.0,"ma":466.67,"d":"2026-11-02"},{"n":"REYES, MAECELLIZA","t":"OSSUARY","p":16800,"tm":36,"tp":3000.0,"ma":466.67,"d":"2026-11-02"},{"n":"MEJARES, KAREN","t":"OSSUARY","p":16800,"tm":36,"tp":2000.0,"ma":466.67,"d":"2026-11-05"},{"n":"MIRADORES, LOLITA","t":"OSSUARY","p":16800,"tm":36,"tp":1000.0,"ma":444.44,"d":"2026-12-19"},{"n":"CABRIGAS, JHONALYN","t":"LL-PREMIUM","p":56000,"tm":60,"tp":4000.0,"ma":933.33,"d":"2026-12-29"},{"n":"PALAPAR, SERENE, AND BACUS BAETRICE","t":"FE-PRIME","p":935000,"tm":60,"tp":77500.0,"ma":15416.67,"d":"2026-12-29"},{"n":"BULAN. CRISCEL","t":"OTHER","p":640000,"tm":36,"tp":373333.3800000001,"ma":17777.78,"d":"2024-01-01"}];
+
+// ============ SEED DATA ============
+// Uses real D7 Bohol Memorial Park masterlist as foundation.
+// Each real client record is mapped to a lot of matching type, and payment
+// history is synthesized to match the actual TOTAL PAYMENTS recorded.
+function seed(allLots) {
+  const rng = mulberry32(20240519);
+  const lotData = {};
+  const clients = {};
+  const auditLog = [];
+  let clientIdCounter = 1;
+  let receiptCounter = 100001;
+
+  const users = [
+    { id: "u_admin", name: "Maria Lopez", role: "admin", email: "admin@cemetery.ph", password: "admin123" },
+    { id: "u_accountant", name: "Pedro Garcia", role: "accountant", email: "accounting@cemetery.ph", password: "acct123" },
+    { id: "u_marketing", name: "Liza Bautista", role: "marketing", email: "marketing@cemetery.ph", password: "mkt123" },
+    { id: "u_staff1", name: "Ana Cruz", role: "staff", email: "staff1@cemetery.ph", password: "staff123" },
+    { id: "u_staff2", name: "Juan Reyes", role: "staff", email: "staff2@cemetery.ph", password: "staff123" },
+  ];
+
+  const agents = [
+    { id: "ag_1", name: "Carlos Mendoza", commissionRate: 5.0, email: "carlos@cemetery.ph", contact: "+63 917 555 0101", active: true },
+    { id: "ag_2", name: "Sofia Reyes",    commissionRate: 4.5, email: "sofia@cemetery.ph",  contact: "+63 917 555 0102", active: true },
+    { id: "ag_3", name: "Miguel Santos",  commissionRate: 5.0, email: "miguel@cemetery.ph", contact: "+63 917 555 0103", active: true },
+    { id: "ag_4", name: "Elena Cruz",     commissionRate: 4.0, email: "elena@cemetery.ph",  contact: "+63 917 555 0104", active: false },
+  ];
+
+  const audit = (action, entityType, entityId, userId, details) => {
+    auditLog.push({
+      id: "a_" + (auditLog.length+1),
+      timestamp: new Date(2024 + Math.floor(rng()*2.5), Math.floor(rng()*12), 1+Math.floor(rng()*27), Math.floor(rng()*24), Math.floor(rng()*60)).toISOString(),
+      action, entityType, entityId, userId, details,
+    });
+  };
+
+  // Map real type strings to section IDs
+  const typeToSection = {
+    "LL-REGULAR": "ll", "LL-PREMIUM": "ll", "LL-PRIME": "ll",
+    "GL-REGULAR": "gl", "GL-PREMIUM": "gl", "GL-PRIME": "gl",
+    "FE-REGULAR": "fe", "FE-PREMIUM": "fe", "FE-PRIME": "fe",
+    "CE": "ce", "CE-PREMIUM": "ce",
+    "CV": "cv",
+    "OSSUARY": "os",
+    "OTHER": "ll",
+  };
+  const typeToTier = {
+    "LL-REGULAR": "REGULAR", "LL-PREMIUM": "PREMIUM", "LL-PRIME": "PRIME",
+    "GL-REGULAR": "REGULAR", "GL-PREMIUM": "PREMIUM", "GL-PRIME": "PRIME",
+    "FE-REGULAR": "REGULAR", "FE-PREMIUM": "PREMIUM", "FE-PRIME": "PRIME",
+    "CE": "REGULAR", "CE-PREMIUM": "PREMIUM",
+    "CV": "REGULAR", "OSSUARY": "REGULAR", "OTHER": "REGULAR",
+  };
+
+  // Build lookup: lots grouped by section+tier
+  const lotsBySectionTier = {};
+  allLots.forEach(lot => {
+    const key = lot.section + "_" + (lot.tier || "REGULAR");
+    if (!lotsBySectionTier[key]) lotsBySectionTier[key] = [];
+    lotsBySectionTier[key].push(lot);
+  });
+
+  // Initialize every lot as available
+  allLots.forEach(lot => {
+    const priceRange = SECTIONS[lot.section].priceRange;
+    const tierMult = TIERS[lot.tier || "REGULAR"].multiplier;
+    const basePrice = (priceRange[0] + priceRange[1]) / 2;
+    const lotPrice = Math.round(basePrice * tierMult / 1000) * 1000;
+    lotData[lot.id] = {
+      status: "available", currentClientId: null, lotPrice: 0,
+      payments: [], history: [], interments: [], documents: [],
+      maintenanceFee: 0, maintenancePayments: [],
+      defaultPrice: lotPrice, // used when lot is freshly assigned
+    };
+  });
+
+  // Assign real clients to lots
+  const lotCursors = {}; // tracks next-available index per section_tier
+  Object.keys(lotsBySectionTier).forEach(k => { lotCursors[k] = 0; });
+
+  REAL_CLIENTS.forEach((rc, idx) => {
+    const section = typeToSection[rc.t] || "ll";
+    const tier = typeToTier[rc.t] || "REGULAR";
+    const key = section + "_" + tier;
+    let pool = lotsBySectionTier[key];
+    if (!pool || lotCursors[key] >= pool.length) {
+      // Fall back to any lot in this section
+      const sectionKeys = Object.keys(lotsBySectionTier).filter(k => k.startsWith(section + "_") && lotCursors[k] < lotsBySectionTier[k].length);
+      if (sectionKeys.length === 0) return; // skip if no room
+      pool = lotsBySectionTier[sectionKeys[0]];
+      lotCursors[sectionKeys[0]]++;
+    } else {
+      lotCursors[key]++;
+    }
+    const lot = pool[lotCursors[key] - 1] || pool[0];
+
+    // Create client
+    const clientId = "C" + String(clientIdCounter++).padStart(4, "0");
+    clients[clientId] = {
+      id: clientId,
+      name: rc.n,
+      contact: "+63 9" + Math.floor(rng()*900000000 + 100000000),
+      email: "",
+      address: "Bohol, Philippines",
+      contractUrl: "",
+      since: rc.d,
+      notes: "",
+      createdBy: users[Math.floor(rng()*users.length)].id,
+    };
+    audit("create", "client", clientId, clients[clientId].createdBy, "Created client " + rc.n);
+
+    // Generate payment history that sums to rc.tp (total paid)
+    const targetPaid = Number(rc.tp || 0);
+    const monthlyAmort = Number(rc.ma || (rc.p / rc.tm)) || 1000;
+    const startDate = new Date(rc.d);
+    const payments = [];
+    let cumulative = 0;
+    let monthOffset = 0;
+    while (cumulative < targetPaid - 1 && monthOffset < rc.tm + 12 && monthOffset < 60) {
+      const pmtDate = new Date(startDate);
+      pmtDate.setMonth(pmtDate.getMonth() + monthOffset);
+      if (pmtDate > new Date()) break; // don't make future payments
+      const remaining = targetPaid - cumulative;
+      let amt;
+      if (remaining < monthlyAmort * 1.1) {
+        amt = remaining;
+      } else {
+        // Add ±10% variance to make it realistic
+        amt = Math.round(monthlyAmort * (0.9 + rng() * 0.2));
+        if (amt > remaining) amt = remaining;
+      }
+      if (amt < 100) break;
+      const method = ["Cash", "Bank Transfer", "GCash", "Check"][Math.floor(rng()*4)];
+      const deposited = rng() < 0.75;
+      const depositAccount = deposited ? ["bpi_op", "bdo_dep", "metro"][Math.floor(rng()*3)] : null;
+      // First payment is often Down Payment, then monthly amortization
+      const ptype = monthOffset === 0 ? "downpayment" : "amortization";
+      payments.push({
+        id: "p_" + lot.id + "_" + receiptCounter,
+        orNumber: "OR-" + (receiptCounter++),
+        date: pmtDate.toISOString().slice(0, 10),
+        amount: amt,
+        currency: "PHP",
+        currencyRate: 1,
+        discount: 0,
+        discountReason: "",
+        note: monthOffset === 0 ? "Down Payment" : "Monthly amortization #" + monthOffset,
+        type: ptype,
+        method: method,
+        clientId: clientId,
+        salesAgentId: agents[Math.floor(rng()*agents.length)].id,
+        commissionPaid: false,
+        recordedBy: users[1].id,
+        recordedAt: pmtDate.toISOString(),
+        deposited: deposited,
+        depositDate: deposited ? pmtDate.toISOString().slice(0, 10) : null,
+        depositAccount: depositAccount,
+        receiptPhotoUrl: "",
+        voided: false,
+      });
+      cumulative += amt;
+      monthOffset++;
+    }
+
+    // Assign to lot
+    lotData[lot.id] = {
+      status: "active",
+      currentClientId: clientId,
+      lotPrice: rc.p,
+      payments: payments,
+      history: [],
+      interments: [],
+      documents: [],
+      maintenanceFee: Math.round(rc.p * 0.005 / 100) * 100,
+      maintenancePayments: [],
+      paymentPlan: {
+        type: rc.tm <= 24 ? "monthly" : rc.tm <= 42 ? "monthly" : "monthly",
+        startDate: rc.d,
+        termMonths: rc.tm,
+        downPayment: 0,
+        installmentAmount: monthlyAmort,
+      },
+    };
+  });
+
+  // Generate expenses for last 2 years
+  const expenses = [];
+  for (let y = 2024; y <= 2026; y++) {
+    for (let m = 0; m < 12; m++) {
+      if (y === 2026 && m > 4) break;
+      const cnt = 4 + Math.floor(rng()*5);
+      for (let k = 0; k < cnt; k++) {
+        const cat = EXPENSE_CATEGORIES[Math.floor(rng()*6)];
+        expenses.push({
+          id: "e_" + y + "_" + m + "_" + k,
+          date: new Date(y, m, 1+Math.floor(rng()*27)).toISOString().slice(0, 10),
+          category: cat,
+          description: cat + " - " + ["monthly","quarterly","one-time","weekly"][Math.floor(rng()*4)],
+          amount: Math.floor(5000+rng()*80000),
+          vendor: "Vendor " + String.fromCharCode(65+Math.floor(rng()*8)),
+          paymentMethod: PAYMENT_METHODS[Math.floor(rng()*4)],
+          fromAccount: BANK_ACCOUNTS[1+Math.floor(rng()*3)].id,
+          recordedBy: users[1].id,
+        });
+      }
+    }
+  }
+
+  return {
+    lots: lotData,
+    clients,
+    expenses,
+    users,
+    currentUser: "u_admin",
+    auditLog,
+    bankAccounts: BANK_ACCOUNTS,
+    agents,
+    commissionPayouts: [],
+    callQueue: [],
+    transfers: [],
+    trash: [],
+    lockedMonths: [],
+    pendingVerifications: [],
+    settings: { targetContractValue: 54465316 },  // Real D7 Bohol target from masterlist
+  };
+}
+
+// ============ MAIN COMPONENT ============
+export default function CemeteryDashboard() {
+  const allLots = useMemo(() => [
+    ...generateLawnLots(WORLD.sections.ll.offsetX, WORLD.sections.ll.offsetY),
+    ...generateGardenLots(WORLD.sections.gl.offsetX, WORLD.sections.gl.offsetY),
+    ...generateFamilyEstates(WORLD.sections.fe.offsetX, WORLD.sections.fe.offsetY),
+    ...generateCourtEstates(WORLD.sections.ce.offsetX, WORLD.sections.ce.offsetY),
+    ...generateCommunityVaults(WORLD.sections.cv.offsetX, WORLD.sections.cv.offsetY),
+    ...generateOssuary(WORLD.sections.os.offsetX, WORLD.sections.os.offsetY),
+  ], []);
+
+  const lotsBySection = useMemo(() => ({
+    ll: allLots.filter(l => l.section === "ll"),
+    gl: allLots.filter(l => l.section === "gl"),
+    fe: allLots.filter(l => l.section === "fe"),
+    ce: allLots.filter(l => l.section === "ce"),
+    cv: allLots.filter(l => l.section === "cv"),
+    os: allLots.filter(l => l.section === "os"),
+  }), [allLots]);
+
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("home");
+  const [currentUserId, setCurrentUserId] = useState("u_admin");
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await window.storage.get("cemetery_v6", true);
+        if (mounted && res && res.value) {
+          const parsed = JSON.parse(res.value);
+          // Backfill missing fields for forward-compat
+          if (!parsed.agents) parsed.agents = [];
+          if (!parsed.commissionPayouts) parsed.commissionPayouts = [];
+          if (!parsed.callQueue) parsed.callQueue = [];
+          if (!parsed.transfers) parsed.transfers = [];
+          if (!parsed.trash) parsed.trash = [];
+          if (!parsed.lockedMonths) parsed.lockedMonths = [];
+          if (!parsed.pendingVerifications) parsed.pendingVerifications = [];
+          if (!parsed.settings) parsed.settings = { targetContractValue: 270000000 };
+          // Ensure default passwords exist on legacy users
+          parsed.users = (parsed.users||[]).map(u => u.password ? u : {...u, password: u.role==="admin"?"admin123":u.role==="accountant"?"acct123":u.role==="marketing"?"mkt123":"staff123"});
+          // Add marketing user if missing (forward-compat for older data)
+          if (!parsed.users.find(u => u.role === "marketing")) {
+            parsed.users.push({ id: "u_marketing", name: "Liza Bautista", role: "marketing", email: "marketing@cemetery.ph", password: "mkt123" });
+          }
+          setData(parsed);
+          setCurrentUserId(parsed.currentUser || "u_admin");
+          setLoading(false);
+          return;
+        }
+      } catch (e) {}
+      const seeded = seed(allLots);
+      if (mounted) {
+        setData(seeded);
+        setCurrentUserId(seeded.currentUser);
+        setLoading(false);
+        try { await window.storage.set("cemetery_v6", JSON.stringify(seeded), true); } catch(e){}
+      }
+    })();
+    return () => { mounted = false; };
+  }, [allLots]);
+
+  const save = useCallback(async (next) => {
+    setData(next);
+    try { await window.storage.set("cemetery_v6", JSON.stringify(next), true); } catch(e) { console.error(e); }
+  }, []);
+
+  const logAudit = useCallback((action, entityType, entityId, details) => {
+    const entry = {
+      id: `a_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      timestamp: nowISO(),
+      action, entityType, entityId,
+      userId: currentUserId,
+      details,
+    };
+    setData(d => {
+      const next = { ...d, auditLog: [entry, ...(d.auditLog||[])] };
+      window.storage.set("cemetery_v6", JSON.stringify(next), true).catch(()=>{});
+      return next;
+    });
+  }, [currentUserId]);
+
+  const switchUser = useCallback((userId) => {
+    setCurrentUserId(userId);
+    setData(d => {
+      const next = { ...d, currentUser: userId };
+      window.storage.set("cemetery_v6", JSON.stringify(next), true).catch(()=>{});
+      return next;
+    });
+  }, []);
+
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5" style={{background:"radial-gradient(900px 500px at 50% 20%, rgba(10,132,255,0.12), transparent 60%), linear-gradient(180deg,#fbfbfd,#eef0f3)"}}>
+        <GlobalStyles/>
+        <div className="brand-mark display-font" style={{width:64,height:64,borderRadius:18,fontSize:26}}>77</div>
+        <div className="display-font text-lg" style={{color:"#1d1d1f",letterSpacing:"0.02em"}}>Double Seven Properties</div>
+        <div className="text-xs tracking-[0.35em]" style={{color:"#8e8e93"}}>LOADING REGISTRY…</div>
+      </div>
+    );
+  }
+
+  // Session gating - until a session-authenticated user is set, show login
+  if (!loggedIn) {
+    return <LoginScreen users={data.users} onLogin={(userId) => { setCurrentUserId(userId); setLoggedIn(true); setData(d => ({...d, currentUser: userId})); window.storage.set("cemetery_v6", JSON.stringify({...data, currentUser: userId}), true).catch(()=>{}); logAudit("login", "session", userId, `User logged in`); }} />;
+  }
+
+  const currentUser = data.users.find(u => u.id === currentUserId) || data.users[0];
+  const role = ROLES[currentUser.role];
+
+  // If user no longer has access to the current tab, redirect to home
+  if (!hasTab(currentUser, tab)) {
+    setTimeout(() => setTab(role.tabs[0] || "home"), 0);
+  }
+
+  const logout = () => {
+    logAudit("logout", "session", currentUser.id, `User logged out`);
+    setLoggedIn(false);
+  };
+
+  return (
+    <div className="min-h-screen w-full" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif', color: '#1d1d1f', background: "radial-gradient(1200px 620px at 50% -12%, rgba(10,132,255,0.10), transparent 60%), linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 55%, #eef0f3 100%)", backgroundAttachment: 'fixed' }}>
+      <GlobalStyles />
+      <Header tab={tab} setTab={setTab} currentUser={currentUser} users={data.users} onLogout={logout} />
+      {tab === "home" && hasTab(currentUser, "home") && <HomeView data={data} allLots={allLots} setTab={setTab} currentUser={currentUser} />}
+      {tab === "map" && hasTab(currentUser, "map") && <MapView allLots={allLots} lotsBySection={lotsBySection} data={data} save={save} logAudit={logAudit} currentUser={currentUser} />}
+      {tab === "ledger" && hasTab(currentUser, "ledger") && <LedgerView data={data} allLots={allLots} save={save} logAudit={logAudit} currentUser={currentUser} />}
+      {tab === "expenses" && hasTab(currentUser, "expenses") && <ExpensesView data={data} save={save} logAudit={logAudit} currentUser={currentUser} />}
+      {tab === "clients" && hasTab(currentUser, "clients") && <ClientsView data={data} save={save} allLots={allLots} currentUser={currentUser} logAudit={logAudit} />}
+      {tab === "cash" && hasTab(currentUser, "cash") && <CashView data={data} save={save} logAudit={logAudit} currentUser={currentUser} />}
+      {tab === "agents" && hasTab(currentUser, "agents") && <AgentsView data={data} save={save} logAudit={logAudit} allLots={allLots} />}
+      {tab === "collections" && hasTab(currentUser, "collections") && <CollectionsView data={data} save={save} logAudit={logAudit} allLots={allLots} currentUser={currentUser} />}
+      {tab === "transfers" && hasTab(currentUser, "transfers") && <TransfersView data={data} save={save} logAudit={logAudit} allLots={allLots} currentUser={currentUser} />}
+      {tab === "reports" && hasTab(currentUser, "reports") && <ReportsView data={data} allLots={allLots} />}
+      {tab === "audit" && hasTab(currentUser, "audit") && <AuditView data={data} />}
+      {tab === "trash" && hasTab(currentUser, "trash") && <TrashView data={data} save={save} logAudit={logAudit} />}
+      {tab === "settings" && hasTab(currentUser, "settings") && <SettingsView data={data} save={save} logAudit={logAudit} currentUser={currentUser} />}
+      {tab === "pending" && hasTab(currentUser, "pending") && <PendingView data={data} save={save} logAudit={logAudit} allLots={allLots} currentUser={currentUser} />}
+    </div>
+  );
+}
+
+// ============ STYLES ============
+function GlobalStyles() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+      /* ===== Double Seven Properties · Apple-grade design system ===== */
+      :root{
+        --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Segoe UI",system-ui,sans-serif;
+        --accent:#0A84FF; --accent-2:#0071e3; --accent-glow:rgba(10,132,255,.45);
+        --ink:#1d1d1f; --ink-soft:#3a3a3c; --muted:#6e6e73; --muted-2:#8e8e93;
+        --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.12);
+        --glass:rgba(255,255,255,.66);
+        --ease:cubic-bezier(.22,1,.36,1);
+      }
+
+      *{ -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+
+      /* smooth, spring-eased motion everywhere */
+      button,a,input,select,textarea,.nav-pill,.card-lift{
+        transition: background-color .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease),
+                    box-shadow .35s var(--ease), transform .35s var(--ease), filter .25s var(--ease);
+      }
+      button:active{ transform: translateY(.5px) scale(.986); }
+      .card-lift:hover{ transform: translateY(-2px); }
+      @keyframes d7FadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+      @keyframes d7Breathe{ 0%,100%{box-shadow:0 0 0 1px rgba(10,132,255,.12), 0 0 22px -6px var(--accent-glow);} 50%{box-shadow:0 0 0 1px rgba(10,132,255,.28), 0 0 34px -4px var(--accent-glow);} }
+
+      /* Apple headline font (replaces the old serif) */
+      .display-font{ font-family:var(--font-sans); font-weight:700; letter-spacing:-0.025em; }
+
+      /* PRIMARY CTA reskin -> Apple-blue glowing (every bg-stone-900 button) */
+      .bg-stone-900{ background:linear-gradient(180deg,#2a97ff,var(--accent)) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 8px 22px -8px var(--accent-glow); }
+      .hover\\:bg-stone-700:hover{ background:linear-gradient(180deg,#1f8bff,var(--accent-2)) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.34), 0 12px 30px -6px var(--accent-glow); }
+
+      /* glowing hollow (ghost) control */
+      .glow-hollow{ background:rgba(255,255,255,.5); border:1px solid rgba(10,132,255,.55); color:var(--accent); border-radius:12px; font-weight:600;
+        box-shadow:0 0 0 1px rgba(10,132,255,.1), 0 0 18px -5px var(--accent-glow); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+      .glow-hollow:hover{ background:rgba(10,132,255,.09); border-color:var(--accent); box-shadow:0 0 0 1px rgba(10,132,255,.35), 0 0 28px -2px var(--accent-glow); transform:translateY(-1px); }
+
+      /* frosted glass surface */
+      .glass{ background:var(--glass); -webkit-backdrop-filter:saturate(1.7) blur(22px); backdrop-filter:saturate(1.7) blur(22px); border:1px solid rgba(255,255,255,.55); }
+
+      /* brand monogram */
+      .brand-mark{ display:grid; place-items:center; width:46px; height:46px; border-radius:14px; font-weight:800; letter-spacing:-.05em; color:var(--accent);
+        background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(255,255,255,.45)); border:1px solid rgba(10,132,255,.4);
+        box-shadow:0 0 0 1px rgba(10,132,255,.12), 0 0 22px -6px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.8);
+        -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); animation:d7Breathe 5s ease-in-out infinite; }
+
+      /* map lot polygons */
+      .lot-poly { cursor: pointer; transition: filter 0.2s var(--ease), stroke-width 0.2s var(--ease); }
+      .lot-poly:hover { filter: brightness(1.08) drop-shadow(0 0 8px var(--accent-glow)); stroke-width: 1.5; }
+      .lot-poly.selected { stroke: var(--accent); stroke-width: 2.5; filter: drop-shadow(0 0 10px var(--accent-glow)); }
+      .lot-poly.dimmed { opacity: 0.15; }
+      .pulse-overdue { animation: pulseOverdue 2s ease-in-out infinite; }
+      @keyframes pulseOverdue { 0%,100%{filter:drop-shadow(0 0 0 rgba(255,59,48,0));}50%{filter:drop-shadow(0 0 9px rgba(255,59,48,0.75));} }
+
+      /* Apple elevation for cards/panels */
+      .panel-shadow { border-radius:20px; box-shadow: 0 1px 1px rgba(0,0,0,.04), 0 14px 40px -14px rgba(18,28,48,.24), 0 2px 8px rgba(18,28,48,.05); }
+      .grain { background-image: radial-gradient(circle, rgba(10,132,255,0.03) 1px, transparent 1px); background-size: 5px 5px; }
+
+      /* ledger tables -> clean Apple */
+      table.ledger { border-collapse: separate; border-spacing:0; width: 100%; font-size: 13px; }
+      table.ledger th { background: rgba(245,245,247,.92); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); color: #6e6e73; padding: 11px 12px; text-align: left; font-size: 10.5px; letter-spacing: 0.06em; text-transform:uppercase; font-weight: 600; position: sticky; top: 0; z-index: 1; border-bottom:1px solid var(--line); }
+      table.ledger td { padding: 11px 12px; border-bottom: 1px solid rgba(0,0,0,0.05); color: #1d1d1f; }
+      table.ledger tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+      table.ledger tr:hover td { background: rgba(10,132,255,0.06); }
+      table.ledger tr.voided td { color: #aaa; text-decoration: line-through; background: rgba(0,0,0,0.03) !important; }
+
+      .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2.5px 9px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.03em; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+      .col-filter { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; background: rgba(255,255,255,0.14); border-radius: 6px; font-size: 9px; margin-left: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.25); }
+      .col-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .sort-icon { display:inline-flex; vertical-align: middle; margin-left: 4px; opacity: 0.45; }
+      .sort-icon.active { opacity: 1; color: var(--accent); }
+      .filter-dropdown { position: absolute; top: 100%; left: 0; margin-top: 6px; background: rgba(255,255,255,.86); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); border: 1px solid var(--line); border-radius: 12px; padding: 7px; min-width: 180px; max-height: 240px; overflow-y: auto; box-shadow: 0 20px 50px -12px rgba(18,28,48,.28); z-index: 20; }
+      .filter-dropdown label { display:flex; align-items:center; gap: 6px; padding: 5px 7px; font-size: 12px; color: #1d1d1f; cursor: pointer; border-radius: 7px; }
+      .filter-dropdown label:hover { background: rgba(10,132,255,0.08); }
+      .filter-dropdown input[type=checkbox] { margin: 0; accent-color: var(--accent); }
+      .role-pill { padding: 2px 9px; border-radius: 999px; font-size: 10px; font-weight: 600; color: white; letter-spacing:.02em; }
+
+      /* navigation pills */
+      .nav-pill{ border-radius:11px; }
+      .nav-pill.active{ color:var(--accent) !important; background:rgba(10,132,255,.1); box-shadow:0 0 0 1px rgba(10,132,255,.28), 0 0 20px -7px var(--accent-glow); }
+      .nav-pill:not(.active):hover{ background:rgba(0,0,0,.045); color:var(--ink) !important; }
+
+      /* focus glow on inputs */
+      input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--accent) !important; box-shadow:0 0 0 3.5px rgba(10,132,255,.18); }
+
+      /* refined scrollbars + selection */
+      ::-webkit-scrollbar{ width:11px; height:11px; }
+      ::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.18); border-radius:99px; border:3px solid transparent; background-clip:content-box; }
+      ::-webkit-scrollbar-thumb:hover{ background:rgba(0,0,0,.32); background-clip:content-box; }
+      ::selection{ background:rgba(10,132,255,.22); }
+    `}</style>
+  );
+}
+
+// ============ HEADER ============
+function Header({ tab, setTab, currentUser, users, onLogout }) {
+  const allTabs = [
+    { id: "home", label: "Home", icon: Home },
+    { id: "map", label: "Map", icon: MapIcon },
+    { id: "ledger", label: "Ledger", icon: BookOpen },
+    { id: "expenses", label: "Expenses", icon: Receipt },
+    { id: "clients", label: "Clients", icon: Users },
+    { id: "cash", label: "Cash Position", icon: Wallet },
+    { id: "agents", label: "Agents", icon: UserCheck },
+    { id: "collections", label: "Collections", icon: AlertTriangle },
+    { id: "transfers", label: "Transfers", icon: ArrowUpRight },
+    { id: "reports", label: "Reports", icon: FileText },
+    { id: "pending", label: "Pending", icon: AlertTriangle },
+    { id: "audit", label: "Audit", icon: History },
+    { id: "trash", label: "Trash", icon: Trash2 },
+    { id: "settings", label: "Settings", icon: FileSignature },
+  ];
+  const tabs = allTabs.filter(t => hasTab(currentUser, t.id));
+  return (
+    <header className="px-8 pt-5 pb-0 sticky top-0 z-30" style={{borderBottom:"1px solid var(--line)", background:"rgba(251,251,253,0.9)", backdropFilter:"saturate(1.5) blur(18px)", WebkitBackdropFilter:"saturate(1.5) blur(18px)"}}>
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-3.5">
+        <div className="flex items-center gap-4">
+          <div className="brand-mark display-font" style={{fontSize:19}}>77</div>
+          <div>
+            <div className="text-[11px] tracking-[0.28em] font-semibold" style={{color:"var(--accent)"}}>DOUBLE SEVEN PROPERTIES INC.</div>
+            <h1 className="display-font text-[26px] leading-none" style={{color:"var(--ink)"}}>D7 Bohol Memorial Park</h1>
+            <div className="text-[12.5px] mt-1" style={{color:"var(--muted)"}}>Registry · Lot status · Client ledger · Accounting</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs" style={{color:"var(--muted)"}}>Signed in</span>
+          <span className="text-sm font-semibold" style={{color:"var(--ink)"}}>{currentUser.name}</span>
+          <span className="role-pill" style={{background: ROLES[currentUser.role].color}}>{ROLES[currentUser.role].label}</span>
+          <button onClick={onLogout} className="glow-hollow ml-1 px-3.5 py-1.5 text-xs">Log out</button>
+        </div>
+      </div>
+      <nav className="flex gap-1 overflow-x-auto pb-2.5">
+        {tabs.map(t => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`nav-pill px-3.5 py-2 text-[13px] font-medium flex items-center gap-2 whitespace-nowrap ${active ? "active" : ""}`}
+              style={active ? undefined : {color:"var(--muted)"}}>
+              <Icon className="w-4 h-4" /> {t.label}
+            </button>
+          );
+        })}
+      </nav>
+    </header>
+  );
+}
+
+// ============ LOGIN SCREEN ============
+function LoginScreen({ users, onLogin }) {
+  const [selectedId, setSelectedId] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const tryLogin = () => {
+    if (!selectedId) { setError("Select a user."); return; }
+    const u = users.find(x => x.id === selectedId);
+    if (!u) { setError("User not found."); return; }
+    if (u.password && u.password !== password) { setError("Wrong password."); return; }
+    setError("");
+    onLogin(selectedId);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{background: "radial-gradient(1000px 560px at 50% -8%, rgba(10,132,255,0.14), transparent 60%), linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 55%, #eef0f3 100%)"}}>
+      <GlobalStyles/>
+      <div className="glass panel-shadow p-8 w-full max-w-md" style={{animation:"d7FadeUp .6s var(--ease) both"}}>
+        <div className="brand-mark display-font mb-5" style={{fontSize:19}}>77</div>
+        <div className="text-[11px] tracking-[0.28em] font-semibold mb-1.5" style={{color:"var(--accent)"}}>DOUBLE SEVEN PROPERTIES INC.</div>
+        <h1 className="display-font text-3xl leading-tight mb-1" style={{color:"var(--ink)"}}>D7 Bohol Memorial Park</h1>
+        <p className="text-sm mb-6" style={{color:"var(--muted)"}}>Sign in to continue to the registry</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs tracking-widest text-stone-600">USER</label>
+            <select value={selectedId} onChange={e=>{setSelectedId(e.target.value); setError("");}} className="w-full px-3 py-2.5 rounded-md border border-stone-300 bg-white text-sm mt-1">
+              <option value="">— Select user —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name} · {ROLES[u.role].label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs tracking-widest text-stone-600">PASSWORD</label>
+            <input type="password" value={password} onChange={e=>{setPassword(e.target.value); setError("");}} onKeyDown={e=>e.key==="Enter"&&tryLogin()} className="w-full px-3 py-2.5 rounded-md border border-stone-300 bg-white text-sm mt-1"/>
+          </div>
+          {error && <div className="text-xs text-red-700 bg-red-50 px-3 py-2 rounded">{error}</div>}
+          <button onClick={tryLogin} className="w-full py-2.5 bg-stone-900 hover:bg-stone-700 text-stone-50 rounded-md text-sm">Sign In</button>
+        </div>
+        <div className="mt-6 pt-4 border-t border-stone-200">
+          <div className="text-[10px] tracking-widest text-stone-500 mb-2">DEMO CREDENTIALS</div>
+          <div className="text-xs text-stone-600 space-y-1">
+            <div><span className="font-semibold">Admin:</span> Maria Lopez · password: <code className="bg-stone-100 px-1 rounded">admin123</code></div>
+            <div><span className="font-semibold">Accountant:</span> Pedro Garcia · <code className="bg-stone-100 px-1 rounded">acct123</code></div>
+            <div><span className="font-semibold">Marketing:</span> Liza Bautista · <code className="bg-stone-100 px-1 rounded">mkt123</code></div>
+            <div><span className="font-semibold">Staff:</span> Ana / Juan · <code className="bg-stone-100 px-1 rounded">staff123</code></div>
+          </div>
+          <div className="text-[10px] text-amber-700 italic mt-3 bg-amber-50 p-2 rounded border border-amber-200">
+            ⚠ This is UI-level only. Anyone with browser developer tools open can bypass this. Real security requires a backend.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ IMAGE LIGHTBOX ============
+function Lightbox({ items, index, setIndex, onClose }) {
+  useEffect(() => {
+    if (index == null) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") setIndex(i => (i + 1) % items.length);
+      else if (e.key === "ArrowLeft") setIndex(i => (i - 1 + items.length) % items.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, items, setIndex, onClose]);
+  if (index == null || !items[index]) return null;
+  const it = items[index];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
+      style={{ background: "rgba(8,10,18,0.84)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", animation: "d7FadeUp .25s var(--ease) both" }}
+      onClick={onClose}>
+      <button onClick={onClose} className="glow-hollow absolute top-5 right-5 z-10 w-10 h-10 flex items-center justify-center !text-white" style={{borderColor:"rgba(255,255,255,.4)"}} aria-label="Close"><X className="w-5 h-5"/></button>
+      {items.length > 1 && (
+        <>
+          <button onClick={(e)=>{e.stopPropagation(); setIndex(i=>(i-1+items.length)%items.length);}} className="absolute left-3 md:left-8 z-10 w-11 h-11 rounded-full glass flex items-center justify-center text-2xl leading-none" style={{color:"#fff"}} aria-label="Previous">‹</button>
+          <button onClick={(e)=>{e.stopPropagation(); setIndex(i=>(i+1)%items.length);}} className="absolute right-3 md:right-8 z-10 w-11 h-11 rounded-full glass flex items-center justify-center text-2xl leading-none" style={{color:"#fff"}} aria-label="Next">›</button>
+        </>
+      )}
+      <div className="flex flex-col items-center gap-3 max-w-[94vw] max-h-[92vh]" onClick={e=>e.stopPropagation()}>
+        <img src={it.src} alt={it.label} className="max-w-full max-h-[82vh] object-contain rounded-2xl"
+          style={{ boxShadow: "0 30px 90px -20px rgba(10,132,255,0.45), 0 0 0 1px rgba(255,255,255,0.08)" }}/>
+        <div className="flex items-center gap-3">
+          {it.kind && <span className="badge" style={{background:"rgba(10,132,255,.18)", color:"#9dc9ff"}}>{it.kind}</span>}
+          <span className="text-white/90 text-sm tracking-wide">{it.label}</span>
+          {items.length > 1 && <span className="text-white/50 text-xs">{index+1} / {items.length}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ OFFICIAL PLANS & DESIGNS GALLERY ============
+function AssetGallery({ activeSection }) {
+  const [open, setOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(null);
+  const items = useMemo(() => {
+    const list = [PARK_ASSETS.masterPlan];
+    const ref = PARK_ASSETS.sectionRef[activeSection];
+    if (ref) list.push(ref);
+    const renders = PARK_ASSETS.renders.filter(r => activeSection === "all" || r.section === activeSection);
+    return [...list, ...renders];
+  }, [activeSection]);
+  const label = activeSection === "all" ? "Whole Park" : SECTIONS[activeSection].label;
+  return (
+    <div className="px-4 md:px-8 pt-1 pb-1">
+      <div className="rounded-2xl border panel-shadow overflow-hidden" style={{background:"#ffffff", borderColor:"var(--line)"}}>
+        <button onClick={()=>setOpen(o=>!o)} className="w-full px-5 py-3 flex items-center gap-3 text-left hover:bg-black/[0.02] transition">
+          <span className="brand-mark" style={{width:30, height:30, borderRadius:9, fontSize:11, animation:"none"}}>77</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10.5px] tracking-[0.2em] font-semibold" style={{color:"var(--accent)"}}>OFFICIAL PLANS · SALES MAPS · 3D DESIGNS</div>
+            <div className="text-xs truncate" style={{color:"var(--muted)"}}>{items.length} visuals for {label} — tap to enlarge</div>
+          </div>
+          <span className="glow-hollow text-[11px] px-3 py-1.5 flex items-center gap-1.5 shrink-0">
+            {open ? "Hide" : "View designs"}
+            {open ? <ChevronUp className="w-3.5 h-3.5"/> : <ChevronDown className="w-3.5 h-3.5"/>}
+          </span>
+        </button>
+        {open && (
+          <div className="px-5 pb-5 pt-2 flex gap-3 overflow-x-auto" style={{borderTop:"1px solid var(--line)"}}>
+            {items.map((it, i) => (
+              <button key={it.src} onClick={()=>setLbIndex(i)}
+                className="group relative shrink-0 rounded-xl overflow-hidden card-lift"
+                style={{ width: 184, border:"1px solid var(--line)", boxShadow:"0 6px 18px -12px rgba(18,28,48,.3)" }}>
+                <img src={it.src} alt={it.label} loading="lazy"
+                  className="w-full object-cover" style={{ height: 104, transition:"transform .5s var(--ease)" }}/>
+                <div className="absolute inset-x-0 bottom-0 px-2.5 py-1.5 text-left"
+                  style={{ background:"linear-gradient(to top, rgba(8,10,18,.92), rgba(8,10,18,.2), transparent)" }}>
+                  <div className="text-[10.5px] font-semibold text-white leading-tight">{it.label}</div>
+                  {it.kind && <div className="text-[8.5px] tracking-widest mt-0.5" style={{color:"#9dc9ff"}}>{it.kind.toUpperCase()}</div>}
+                </div>
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition" style={{ boxShadow:"inset 0 0 0 2px var(--accent), inset 0 0 30px -6px var(--accent-glow)" }}/>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <Lightbox items={items} index={lbIndex} setIndex={setLbIndex} onClose={()=>setLbIndex(null)} />
+    </div>
+  );
+}
+
+// ============ OFFICIAL SITE-PLAN MAP (real drawings, zoom + pan) ============
+function OfficialMap({ src, label, showTier }) {
+  const [z, setZ] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const drag = useRef(null);
+  useEffect(() => { setZ(1); setPos({ x: 0, y: 0 }); }, [src]);
+  const clampZ = (v) => Math.min(7, Math.max(1, v));
+  const onWheel = (e) => { e.preventDefault(); setZ(v => clampZ(v * (e.deltaY > 0 ? 0.88 : 1.14))); };
+  const onDown = (e) => { drag.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }; };
+  const onMove = (e) => { if (!drag.current) return; setPos({ x: e.clientX - drag.current.x, y: e.clientY - drag.current.y }); };
+  const onUp = () => { drag.current = null; };
+  const reset = () => { setZ(1); setPos({ x: 0, y: 0 }); };
+  return (
+    <div className="relative w-full overflow-hidden" style={{ height: "min(78vh, 760px)", background: "radial-gradient(120% 120% at 50% 0%, #eef4ea, #d7e6cd)", cursor: drag.current ? "grabbing" : z > 1 ? "grab" : "zoom-in" }}
+      onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+      onDoubleClick={() => (z > 1 ? reset() : setZ(2.4))}>
+      <img src={src} alt={label} draggable={false}
+        className="absolute left-1/2 top-1/2 select-none"
+        style={{ width: "100%", height: "100%", objectFit: "contain", transform: `translate(-50%,-50%) translate(${pos.x}px,${pos.y}px) scale(${z})`, transformOrigin: "center", transition: drag.current ? "none" : "transform .16s var(--ease)" }} />
+      <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
+        <button onClick={() => setZ(v => clampZ(v * 1.3))} className="glow-hollow w-9 h-9 flex items-center justify-center text-lg">+</button>
+        <button onClick={() => setZ(v => clampZ(v / 1.3))} className="glow-hollow w-9 h-9 flex items-center justify-center text-lg">−</button>
+        <button onClick={reset} className="glow-hollow px-3 h-9 flex items-center justify-center text-xs">Reset</button>
+      </div>
+      {showTier && (
+        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-3 px-3.5 py-2 rounded-full text-[11px] font-semibold"
+          style={{ background: "rgba(255,255,255,.9)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid var(--line)", color: "#3a3a3c" }}>
+          <span className="tracking-wider text-[9px]" style={{ color: "var(--muted)" }}>TIERS</span>
+          <span className="flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: "#e2342d" }} />Prime</span>
+          <span className="flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: "#f2c200" }} />Premium</span>
+          <span className="flex items-center gap-1.5"><i className="w-3 h-3 rounded-sm inline-block" style={{ background: "#2f7ff0" }} />Regular</span>
+        </div>
+      )}
+      <div className="absolute top-3 right-4 z-10 text-[10px] tracking-widest select-none pointer-events-none" style={{ color: "var(--muted)", marginTop: 40 }}>SCROLL / +− TO ZOOM · DRAG TO PAN · DOUBLE-CLICK</div>
+    </div>
+  );
+}
+
+// ============ MAP VIEW ============
+function MapView({ allLots, lotsBySection, data, save, logAudit, currentUser }) {
+  const [activeSection, setActiveSection] = useState("all");
+  const [selectedId, setSelectedId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [period, setPeriod] = useState("month");
+  const [mapMode, setMapMode] = useState("interactive");
+  const svgRef = useRef(null);
+
+  const sectionLots = activeSection === "all" ? allLots : lotsBySection[activeSection];
+  const officialMap = activeSection === "all" ? PARK_ASSETS.masterPlan : (PARK_ASSETS.sectionRef[activeSection] || PARK_ASSETS.masterPlan);
+  const showTier = activeSection === "ll" || activeSection === "gl";
+
+  // Base map paint mode: sales "status" colors, or realistic "geo" (terrain) view.
+  const [lotView, setLotView] = useState("status");
+  // Floating section-photo lightbox.
+  const [lbIndex, setLbIndex] = useState(null);
+  const galleryItems = useMemo(() => {
+    const list = [];
+    if (activeSection === "all") list.push(PARK_ASSETS.masterPlan);
+    const ref = PARK_ASSETS.sectionRef[activeSection];
+    if (ref) list.push(ref);
+    list.push(...PARK_ASSETS.renders.filter(r => activeSection === "all" || r.section === activeSection));
+    if (!list.length) list.push(PARK_ASSETS.masterPlan);
+    return list;
+  }, [activeSection]);
+  // Deterministic natural terrain shade per lot for the geographic view.
+  const geoFill = useCallback((lot) => {
+    const greens = ["#cfe0bf","#c6dbb2","#d7e6cd","#c0d6a8","#cddcbf","#bcd3a4"];
+    const h = lot.id.split("").reduce((a,c)=>a+c.charCodeAt(0),0);
+    return greens[h % greens.length];
+  }, []);
+
+  // Compute viewBox per section based on world coordinates with padding
+  const sectionViewBox = useMemo(() => {
+    if (activeSection === "all") {
+      return { x: 0, y: 0, w: WORLD.width, h: WORLD.height };
+    }
+    const b = WORLD.sections[activeSection]?.bounds;
+    if (!b) return { x: 0, y: 0, w: WORLD.width, h: WORLD.height };
+    const pad = 40;
+    return { x: b.x - pad, y: b.y - pad, w: b.w + pad*2, h: b.h + pad*2 };
+  }, [activeSection]);
+
+  const [viewBox, setViewBox] = useState(sectionViewBox);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef(null);
+
+  // Keep a live ref of the viewBox so the animation tween always reads the latest value.
+  const viewBoxRef = useRef(viewBox);
+  useEffect(() => { viewBoxRef.current = viewBox; }, [viewBox]);
+  const rafRef = useRef(null);
+
+  // Smoothly ease the viewBox toward a target (Google-Maps-style glide).
+  const animateTo = useCallback((target, dur = 340) => {
+    cancelAnimationFrame(rafRef.current);
+    const from = { ...viewBoxRef.current };
+    const start = performance.now();
+    const ease = t => 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const k = ease(t);
+      setViewBox({
+        x: from.x + (target.x - from.x) * k,
+        y: from.y + (target.y - from.y) * k,
+        w: from.w + (target.w - from.w) * k,
+        h: from.h + (target.h - from.h) * k,
+      });
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  useEffect(() => { animateTo(sectionViewBox, 420); setSelectedId(null); }, [activeSection, sectionViewBox, animateTo]);
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+    const yearKey = `${now.getFullYear()}`;
+    let counts = { available:0, reserved:0, active:0, delinquent:0, defaulted:0, cancelled:0, paid:0 };
+    let totalCollected=0, monthCollected=0, yearCollected=0, totalContract=0, outstanding=0, activeClients=0, forfeitedRevenue=0;
+
+    // All lots stats
+    let globalContract = 0;
+    allLots.forEach(lot => {
+      const r = data.lots[lot.id];
+      if (!r) return;
+      globalContract += r.lotPrice || 0;
+    });
+
+    // Section-specific
+    sectionLots.forEach(lot => {
+      const r = data.lots[lot.id];
+      if (!r) return;
+      const st = recomputeStatus(r);
+      counts[st]++;
+      if (r.currentClientId) activeClients++;
+      const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+      totalCollected += paid;
+      totalContract += r.lotPrice || 0;
+      if (st !== "cancelled" && st !== "available" && st !== "paid") outstanding += Math.max(0, (r.lotPrice||0) - paid);
+      (r.payments||[]).forEach(p => {
+        if (p.voided) return;
+        const net = netPaymentAmount(p);
+        if (p.date?.startsWith(monthKey)) monthCollected += net;
+        if (p.date?.startsWith(yearKey)) yearCollected += net;
+      });
+      (r.history||[]).forEach(h => {
+        forfeitedRevenue += h.forfeitedAmount || 0;
+        (h.payments||[]).forEach(p => {
+          if (p.voided) return;
+          const net = netPaymentAmount(p);
+          if (p.date?.startsWith(monthKey)) monthCollected += net;
+          if (p.date?.startsWith(yearKey)) yearCollected += net;
+        });
+      });
+    });
+    return { counts, totalCollected, monthCollected, yearCollected, totalContract, outstanding, activeClients, forfeitedRevenue, globalContract };
+  }, [data, sectionLots, allLots]);
+
+  const visibleStatus = useCallback(id => recomputeStatus(data.lots[id] || {}), [data]);
+  const matchesFilter = useCallback(id => {
+    const st = visibleStatus(id);
+    if (filter !== "all" && filter !== st) return false;
+    if (!search.trim()) return true;
+    const r = data.lots[id];
+    const q = search.toLowerCase();
+    const lot = allLots.find(l => l.id === id);
+    if (String(lot?.displayId).includes(q)) return true;
+    const client = r?.currentClientId ? data.clients[r.currentClientId] : null;
+    if (client?.name?.toLowerCase().includes(q)) return true;
+    if (client?.contact?.toLowerCase().includes(q)) return true;
+    return false;
+  }, [data, search, filter, visibleStatus, allLots]);
+
+  const minW = 200, minH = 144;
+  const onWheel = (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(rafRef.current);
+    const v = viewBoxRef.current;
+    // Gentle, trackpad-friendly zoom factor scaled by scroll intensity.
+    const intensity = Math.min(0.25, Math.abs(e.deltaY) / 500);
+    const scale = e.deltaY > 0 ? 1 + intensity : 1 - intensity;
+    const rect = svgRef.current.getBoundingClientRect();
+    const px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
+    const mx = px*v.w + v.x, my = py*v.h + v.y;
+    const newW = Math.min(sectionViewBox.w * 1.6, Math.max(minW, v.w*scale));
+    const newH = Math.min(sectionViewBox.h * 1.6, Math.max(minH, v.h*scale));
+    setViewBox({ x: mx - px*newW, y: my - py*newH, w: newW, h: newH });
+  };
+  const onMouseDown = (e) => { if (e.target.tagName === "polygon") return; cancelAnimationFrame(rafRef.current); setIsPanning(true); panStart.current = {x:e.clientX, y:e.clientY, vb:{...viewBoxRef.current}}; };
+  const onMouseMove = (e) => { if(!isPanning||!panStart.current) return; const rect = svgRef.current.getBoundingClientRect(); const dx = ((e.clientX-panStart.current.x)/rect.width)*panStart.current.vb.w; const dy = ((e.clientY-panStart.current.y)/rect.height)*panStart.current.vb.h; setViewBox({...panStart.current.vb, x: panStart.current.vb.x-dx, y: panStart.current.vb.y-dy}); };
+  const onMouseUp = () => { setIsPanning(false); panStart.current = null; };
+  // Double-click to zoom in toward the cursor, like Google Maps.
+  const onDoubleClick = (e) => {
+    const v = viewBoxRef.current;
+    const rect = svgRef.current.getBoundingClientRect();
+    const px = (e.clientX-rect.left)/rect.width, py = (e.clientY-rect.top)/rect.height;
+    const mx = px*v.w + v.x, my = py*v.h + v.y;
+    const newW = Math.max(minW, v.w*0.55), newH = Math.max(minH, v.h*0.55);
+    animateTo({ x: mx - px*newW, y: my - py*newH, w: newW, h: newH }, 300);
+  };
+  const zoomAround = (factor) => {
+    const v = viewBoxRef.current;
+    const newW = Math.min(sectionViewBox.w * 1.6, Math.max(minW, v.w*factor));
+    const newH = Math.min(sectionViewBox.h * 1.6, Math.max(minH, v.h*factor));
+    animateTo({ x: v.x + (v.w-newW)/2, y: v.y + (v.h-newH)/2, w: newW, h: newH }, 300);
+  };
+  const resetView = () => animateTo(sectionViewBox, 420);
+  const zoomIn = () => zoomAround(0.66);
+  const zoomOut = () => zoomAround(1.5);
+
+  return (
+    <div className="flex flex-col" style={{height:'calc(100vh - 146px)'}}>
+      {/* Slim top toolbar — sections + search + status filter */}
+      <div className="shrink-0 px-3 py-2 flex items-center gap-2 flex-wrap border-b border-stone-200 bg-stone-50/70">
+        <div className="flex gap-1 p-1 bg-stone-200 rounded-lg flex-wrap">
+          <button onClick={()=>setActiveSection("all")}
+            className={`px-3 py-1.5 rounded-md flex items-center gap-2 text-sm transition ${activeSection==="all"?"bg-white text-stone-900 shadow font-semibold":"text-stone-600 hover:text-stone-900"}`}>
+            <Maximize2 className="w-3.5 h-3.5"/>All Sections<span className="text-xs text-stone-400">({allLots.length})</span>
+          </button>
+          {Object.values(SECTIONS).map(s => {
+            const Icon = s.icon;
+            const count = lotsBySection[s.id].length;
+            return (
+              <button key={s.id} onClick={()=>setActiveSection(s.id)}
+                className={`px-3 py-1.5 rounded-md flex items-center gap-2 text-sm transition ${activeSection===s.id?"bg-white text-stone-900 shadow font-semibold":"text-stone-600 hover:text-stone-900"}`}>
+                <Icon className="w-3.5 h-3.5" style={{color:s.color}}/>{s.label}<span className="text-xs text-stone-400">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+          <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search lot # or client…"
+            className="pl-9 pr-3 py-1.5 w-56 rounded-md border border-stone-300 bg-white/80 focus:outline-none focus:ring-2 focus:ring-stone-700/30 text-sm" />
+        </div>
+        <select value={filter} onChange={e=>setFilter(e.target.value)} className="px-2.5 py-1.5 rounded-md border border-stone-300 bg-white/80 text-sm">
+          <option value="all">All statuses</option>
+          {Object.entries(STATUS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+        </select>
+        {can(currentUser, "viewAllFinancials") && <div className="text-xs text-stone-500 ml-auto italic hidden xl:block">Total contract value: <span className="display-font text-stone-900 text-base">{peso(stats.globalContract)}</span></div>}
+      </div>
+
+      {/* Map area — fills the rest of the viewport; navigate by zoom/drag (no page scroll) */}
+      <div className="relative flex-1 min-h-0">
+        {mapMode==="interactive" && (
+        <aside className="absolute top-3 left-3 z-20 w-64 max-h-[calc(100%-1.5rem)] overflow-y-auto space-y-2 pr-0.5">
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+            <div className="px-4 py-3 flex items-center gap-2 border-b border-stone-200">
+              <TrendingUp className="w-4 h-4 text-stone-700" />
+              <span className="text-xs tracking-widest text-stone-700 font-semibold">{activeSection==="all" ? "ALL SECTIONS" : SECTIONS[activeSection].label.toUpperCase()} OVERVIEW</span>
+            </div>
+            <div className="p-4 space-y-3">
+              {can(currentUser, "viewAllFinancials") ? (
+                <>
+                  <div className="flex gap-1 text-xs">
+                    {["month","year","all"].map(p => (
+                      <button key={p} onClick={()=>setPeriod(p)}
+                        className={`flex-1 py-1.5 rounded transition ${period===p ? "bg-stone-900 text-stone-50" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}>
+                        {p==="all"?"All-Time":p==="month"?"Month":"Year"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="rounded-md p-4" style={{background:"linear-gradient(140deg, #1d1d1f 0%, #2c2c2e 100%)", color:"#f5f5f7"}}>
+                    <div className="text-xs tracking-wider mb-1" style={{color:"#9dc9ff"}}>COLLECTED</div>
+                    <div className="display-font text-3xl" style={{color:"#f5f5f7"}}>
+                      {peso(period==="month"?stats.monthCollected:period==="year"?stats.yearCollected:stats.totalCollected)}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-stone-100 rounded-md p-3">
+                      <div className="text-[10px] tracking-wider text-stone-500">OUTSTANDING</div>
+                      <div className="display-font text-lg text-stone-900">{peso(stats.outstanding)}</div>
+                    </div>
+                    <div className="bg-stone-100 rounded-md p-3">
+                      <div className="text-[10px] tracking-wider text-stone-500">CONTRACTS</div>
+                      <div className="display-font text-lg text-stone-900">{peso(stats.totalContract)}</div>
+                    </div>
+                    <div className="bg-stone-100 rounded-md p-3">
+                      <div className="text-[10px] tracking-wider text-stone-500">CLIENTS</div>
+                      <div className="display-font text-lg text-stone-900">{stats.activeClients}</div>
+                    </div>
+                    <div className="bg-stone-100 rounded-md p-3">
+                      <div className="text-[10px] tracking-wider text-stone-500">FORFEITED REV</div>
+                      <div className="display-font text-lg text-stone-900">{peso(stats.forfeitedRevenue)}</div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-stone-100 rounded-md p-3">
+                  <div className="text-[10px] tracking-wider text-stone-500">CLIENTS</div>
+                  <div className="display-font text-lg text-stone-900">{stats.activeClients}</div>
+                  <div className="text-[10px] text-stone-400 italic mt-2">Financial details restricted to Admin & Accountant.</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">LOT STATUS</div>
+            <div className="space-y-1.5">
+              {Object.entries(STATUS).map(([k,v]) => (
+                <button key={k} onClick={()=>setFilter(filter===k?"all":k)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-sm transition ${filter===k?"bg-stone-200":"hover:bg-stone-100"}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-sm border" style={{background:v.color, borderColor:v.stroke}} />
+                    <span className="text-stone-700">{v.label}</span>
+                  </div>
+                  <span className="display-font text-lg text-stone-900">{stats.counts[k]||0}</span>
+                </button>
+              ))}
+              <div className="pt-2 mt-2 border-t border-stone-200 flex items-center justify-between px-2 text-xs text-stone-500">
+                <span>Total lots in section</span>
+                <span className="display-font text-base text-stone-900">{sectionLots.length}</span>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+        )}
+
+        <main className="absolute inset-0">
+          <div className="relative w-full h-full overflow-hidden grain" style={{background:"linear-gradient(to bottom, #eef4ea, #dae7d0)"}}>
+            <div className="absolute top-3 right-4 z-20 flex items-center gap-2">
+              {mapMode==="interactive" && (
+                <div className="flex gap-1 p-0.5 rounded-lg" style={{background:"rgba(255,255,255,.85)", border:"1px solid var(--line)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)"}}>
+                  <button onClick={()=>setLotView("status")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${lotView==="status"?"bg-stone-900 text-white":"text-stone-600 hover:text-stone-900"}`} title="Colour lots by sales status">Status</button>
+                  <button onClick={()=>setLotView("geo")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${lotView==="geo"?"bg-stone-900 text-white":"text-stone-600 hover:text-stone-900"}`} title="Natural terrain / aerial view">Geographic</button>
+                </div>
+              )}
+              <div className="flex gap-1 p-0.5 rounded-lg" style={{background:"rgba(255,255,255,.85)", border:"1px solid var(--line)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)"}}>
+                <button onClick={()=>setMapMode("interactive")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${mapMode==="interactive"?"bg-stone-900 text-white":"text-stone-600 hover:text-stone-900"}`}>Digital Map</button>
+                <button onClick={()=>setMapMode("official")} className={`px-3 py-1 rounded-md text-xs font-medium transition ${mapMode==="official"?"bg-stone-900 text-white":"text-stone-600 hover:text-stone-900"}`}>Survey Plan</button>
+              </div>
+            </div>
+            {mapMode==="official" && <OfficialMap src={officialMap.src} label={officialMap.label} showTier={showTier} />}
+            {mapMode==="interactive" && (
+              <div className="absolute bottom-4 right-4 z-20 flex flex-col rounded-xl overflow-hidden" style={{background:"rgba(255,255,255,.92)", border:"1px solid var(--line)", boxShadow:"0 4px 16px rgba(20,40,20,.16)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)"}}>
+                <button onClick={zoomIn} aria-label="Zoom in" className="w-10 h-10 flex items-center justify-center text-stone-700 hover:bg-stone-100 transition"><ZoomIn className="w-4.5 h-4.5"/></button>
+                <div className="h-px bg-stone-200 mx-2"/>
+                <button onClick={zoomOut} aria-label="Zoom out" className="w-10 h-10 flex items-center justify-center text-stone-700 hover:bg-stone-100 transition"><ZoomOut className="w-4.5 h-4.5"/></button>
+                <div className="h-px bg-stone-200 mx-2"/>
+                <button onClick={resetView} aria-label="Reset view" className="w-10 h-10 flex items-center justify-center text-stone-700 hover:bg-stone-100 transition"><Maximize2 className="w-4.5 h-4.5"/></button>
+              </div>
+            )}
+            <svg ref={svgRef} viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+              className="w-full h-full" style={{cursor:isPanning?"grabbing":"grab", touchAction:"none", display: mapMode==="official" ? "none" : "block"}}
+              preserveAspectRatio="xMidYMid meet"
+              onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp} onDoubleClick={onDoubleClick}>
+              <defs>
+                <radialGradient id="grass" cx="50%" cy="50%" r="60%"><stop offset="0%" stopColor="#e7f0dd"/><stop offset="100%" stopColor="#cfe0bf"/></radialGradient>
+                <radialGradient id="treeShade" cx="35%" cy="35%" r="65%"><stop offset="0%" stopColor="#7ba65a"/><stop offset="70%" stopColor="#4a7a2a"/><stop offset="100%" stopColor="#2d5018"/></radialGradient>
+                <radialGradient id="treeEver" cx="35%" cy="35%" r="65%"><stop offset="0%" stopColor="#5a7a3a"/><stop offset="100%" stopColor="#2a4818"/></radialGradient>
+                <pattern id="path" patternUnits="userSpaceOnUse" width="8" height="8"><rect width="8" height="8" fill="#e6eaef"/><circle cx="2" cy="2" r="0.6" fill="#d3d9e0"/><circle cx="6" cy="5" r="0.5" fill="#d3d9e0"/></pattern>
+                <pattern id="wall" patternUnits="userSpaceOnUse" width="12" height="6"><rect width="12" height="6" fill="#c8d2db"/><line x1="0" y1="0" x2="12" y2="0" stroke="#b7c2cd" strokeWidth="0.5"/><line x1="6" y1="0" x2="6" y2="6" stroke="#b7c2cd" strokeWidth="0.5"/></pattern>
+                <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c9d0d8"/><stop offset="100%" stopColor="#aab4bd"/></linearGradient>
+                <filter id="lotShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0.8" stdDeviation="0.8" floodColor="#1b2b1b" floodOpacity="0.28"/></filter>
+                <filter id="labelShadow" x="-30%" y="-60%" width="160%" height="220%"><feDropShadow dx="0" dy="1.5" stdDeviation="3" floodColor="#1b2b1b" floodOpacity="0.22"/></filter>
+                <radialGradient id="pond" cx="42%" cy="38%" r="70%"><stop offset="0%" stopColor="#bfe3ef"/><stop offset="55%" stopColor="#7fc3dd"/><stop offset="100%" stopColor="#4f9dbd"/></radialGradient>
+                <radialGradient id="meadow" cx="50%" cy="45%" r="65%"><stop offset="0%" stopColor="#dcebc9"/><stop offset="100%" stopColor="#c2d8a8"/></radialGradient>
+                <filter id="softBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+              </defs>
+              {/* Pale surround + the real survey scan as the base map */}
+              <rect x={-400} y={-400} width={WORLD.width+800} height={WORLD.height+800} fill="#d7ead0" />
+              <image href={WORLD.image} x={0} y={0} width={WORLD.width} height={WORLD.height} preserveAspectRatio="none"
+                style={{ filter: lotView==="geo" ? "saturate(1.05)" : "none" }} />
+
+              {/* Clickable status cells overlaid on the real lots */}
+              <g filter="url(#lotShadow)">
+              {sectionLots.map(lot => {
+                const r = data.lots[lot.id];
+                if (!r) return null;
+                const st = visibleStatus(lot.id);
+                const cfg = STATUS[st];
+                const isSelected = selectedId === lot.id;
+                const dimmed = (filter !== "all" || search) && !matchesFilter(lot.id);
+                const showPulse = lotView==="status" && (st === "delinquent" || st === "defaulted") && viewBox.w < sectionViewBox.w * 0.7;
+                const fillColor = lotView==="geo" ? geoFill(lot) : cfg.color;
+                return (
+                  <polygon key={lot.id} points={lot.points.map(p=>p.join(",")).join(" ")}
+                    fill={fillColor} fillOpacity={isSelected?0.9:(dimmed?0.12:(lotView==="geo"?0.62:0.5))}
+                    stroke={isSelected?cfg.stroke:(lotView==="geo"?"rgba(90,110,70,0.6)":"rgba(60,70,55,0.55)")} strokeWidth={(lot.section==="cv" || lot.section==="os")?0.4:0.8} strokeLinejoin="round"
+                    className={`lot-poly ${isSelected?"selected":""} ${showPulse?"pulse-overdue":""}`}
+                    onClick={(e)=>{e.stopPropagation();setSelectedId(lot.id);}}>
+                    <title>{`Lot ${lot.displayId} (${SECTIONS[lot.section].label}) — ${cfg.label}${r.currentClientId ? " — " + data.clients[r.currentClientId]?.name : ""}`}</title>
+                  </polygon>
+                );
+              })}
+              </g>
+
+              {/* Lot numbers are on the survey scan itself, so overlay numbers are hidden. */}
+              {false && sectionLots.map(lot => {
+                const r = data.lots[lot.id];
+                if (!r) return null;
+                const small = lot.section==="cv" || lot.section==="os";
+                return (
+                  <text key={`t-${lot.id}`} x={lot.centroid[0]} y={lot.centroid[1]+2} textAnchor="middle" fontSize={small?4:6}
+                    fill={lotView==="geo" ? "#2f4a2f" : STATUS[visibleStatus(lot.id)].text} pointerEvents="none" style={{fontFamily:"Inter, sans-serif", fontWeight:700}}>{lot.displayId}</text>
+                );
+              })}
+
+              {/* ===== Floating place labels (Google-Maps style, always on top, in road gutters) ===== */}
+              {viewBox.w > 1150 && (activeSection === "all"
+                ? ["ll","gl","fe","ce","cv","os"]
+                : [activeSection]
+              ).map(sid => {
+                const b = WORLD.sections[sid]?.bounds;
+                if (!b) return null;
+                const s = SECTIONS[sid];
+                const label = s.label.toUpperCase();
+                const fs = 20, padX = 15, dot = 12, gap = 9;
+                const textW = label.length * fs * 0.6;
+                const w = padX*2 + dot + gap + textW, h = 34;
+                const cx = b.x + b.w/2, cy = b.y - 24;
+                const left = cx - w/2;
+                return (
+                  <g key={`lbl-${sid}`} pointerEvents="none" filter="url(#labelShadow)">
+                    <rect x={left} y={cy - h/2} width={w} height={h} rx={h/2} fill="rgba(255,255,255,0.95)" stroke="rgba(0,0,0,0.06)" strokeWidth={1}/>
+                    <circle cx={left + padX + dot/2} cy={cy} r={dot/2} fill={s.color}/>
+                    <text x={left + padX + dot + gap} y={cy + fs*0.34} fontSize={fs} fill="#2c3a24" style={{fontFamily:"Inter, sans-serif", fontWeight:700, letterSpacing:"0.02em"}}>{label}</text>
+                  </g>
+                );
+              })}
+
+              {/* ===== Compass rose ===== */}
+              <g pointerEvents="none" transform="translate(150 175)">
+                <circle r={64} fill="rgba(255,255,255,0.72)" stroke="#c8d2db" strokeWidth={2} />
+                <circle r={54} fill="none" stroke="#dfe5ea" strokeWidth={1} />
+                <polygon points="0,-52 -13,6 0,-6 13,6" fill="#e2342d" />
+                <polygon points="0,52 -13,-6 0,6 13,-6" fill="#94a0ad" />
+                <polygon points="52,0 -6,-13 6,0 -6,13" fill="#c8d2db" />
+                <polygon points="-52,0 6,-13 -6,0 6,13" fill="#c8d2db" />
+                <circle r={5} fill="#33463a" />
+                <text x={0} y={-70} textAnchor="middle" fontSize={22} fill="#33463a" className="display-font" style={{ fontWeight: 700 }}>N</text>
+              </g>
+            </svg>
+          </div>
+        </main>
+
+        {/* Floating section photos — click a category to see the real lot / design images */}
+        {mapMode==="interactive" && galleryItems.length>0 && (
+          <div className="absolute bottom-3 left-3 z-20 w-60 rounded-xl overflow-hidden" style={{background:"rgba(255,255,255,.96)", border:"1px solid var(--line)", boxShadow:"0 6px 20px rgba(20,40,20,.18)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)"}}>
+            <button onClick={()=>setLbIndex(0)} className="block w-full text-left">
+              <div className="relative">
+                <img src={galleryItems[0].src} alt={galleryItems[0].label} className="w-full object-cover" style={{height:118}}/>
+                <div className="absolute inset-x-0 bottom-0 px-3 py-1.5" style={{background:"linear-gradient(to top, rgba(8,10,18,.92), transparent)"}}>
+                  <div className="text-[11px] font-semibold text-white leading-tight">{activeSection==="all" ? "Whole Park" : SECTIONS[activeSection].label}</div>
+                  <div className="text-[9px] tracking-widest" style={{color:"#9dc9ff"}}>{galleryItems.length} PHOTO{galleryItems.length>1?"S":""} · TAP TO ENLARGE</div>
+                </div>
+              </div>
+            </button>
+            {galleryItems.length>1 && (
+              <div className="flex gap-1 p-1.5 overflow-x-auto">
+                {galleryItems.slice(0,6).map((it,i)=>(
+                  <button key={it.src} onClick={()=>setLbIndex(i)} className="shrink-0 rounded-md overflow-hidden border" style={{borderColor:"var(--line)"}}>
+                    <img src={it.src} alt={it.label} className="object-cover" style={{width:44,height:34}}/>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <Lightbox items={galleryItems} index={lbIndex} setIndex={setLbIndex} onClose={()=>setLbIndex(null)} />
+      </div>
+
+      {selectedId != null && (
+        <LotDetail
+          lot={allLots.find(l=>l.id===selectedId)}
+          record={data.lots[selectedId]}
+          clients={data.clients}
+          users={data.users}
+          bankAccounts={data.bankAccounts}
+          agents={data.agents || []}
+          lockedMonths={data.lockedMonths || []}
+          currentUser={currentUser}
+          onClose={()=>setSelectedId(null)}
+          onSave={(nextRecord, nextClients) => {
+            const next = {...data, lots:{...data.lots, [selectedId]:nextRecord}, clients: nextClients || data.clients};
+            save(next);
+          }}
+          onSubmitPending={(pendingItem) => {
+            save({...data, pendingVerifications: [...(data.pendingVerifications||[]), pendingItem]});
+          }}
+          logAudit={logAudit}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============ LOT DETAIL DRAWER ============
+function LotDetail({ lot, record, clients, users, bankAccounts, agents, lockedMonths, currentUser, onClose, onSave, onSubmitPending, logAudit }) {
+  const [tab, setTab] = useState("current");
+  const status = recomputeStatus(record);
+  const cfg = STATUS[status];
+  const paidTotal = (record.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+  const balance = (record.lotPrice||0) - paidTotal;
+  const progress = record.lotPrice ? Math.min(100, (paidTotal/record.lotPrice)*100) : 0;
+  const client = record.currentClientId ? clients[record.currentClientId] : null;
+
+  const [editing, setEditing] = useState(false);
+  const [clientDraft, setClientDraft] = useState(client || {});
+  const [lotPriceDraft, setLotPriceDraft] = useState(record.lotPrice || 0);
+  const [maintenanceDraft, setMaintenanceDraft] = useState(record.maintenanceFee || 0);
+  const [newPayment, setNewPayment] = useState({
+    date: today(), amount: "", note: "", method: "Cash",
+    type: can(currentUser, "recordReservationOnly") ? "reservation" : "amortization",
+    discount: 0, discountReason: "", deposited: false, depositAccount: "cash",
+    salesAgentId: "", currency: "PHP", currencyRate: 1, receiptPhotoUrl: "",
+  });
+  const [newInterment, setNewInterment] = useState({ name: "", birthDate: "", deathDate: "", burialDate: "", relation: "", notes: "" });
+
+  useEffect(() => {
+    setClientDraft(client || {});
+    setLotPriceDraft(record.lotPrice || 0);
+    setMaintenanceDraft(record.maintenanceFee || 0);
+    setEditing(false);
+  }, [record, lot.id]);
+
+  const addPayment = () => {
+    if (!newPayment.amount || Number(newPayment.amount) <= 0) return;
+    if (inLockedMonth(newPayment.date, lockedMonths)) {
+      alert(`Cannot record payments for ${monthKey(newPayment.date)} — this period is locked. Ask an admin to unlock it in Settings.`);
+      return;
+    }
+    // Permission: marketing can only record reservation deposits
+    if (can(currentUser, "recordReservationOnly") && newPayment.type !== "reservation") {
+      alert("As Marketing, you can only record reservation deposits. Sale installments and maintenance fees are handled by the accountant.");
+      return;
+    }
+    // Permission: receipt photo required for restricted roles
+    if (can(currentUser, "requireReceiptPhoto") && !newPayment.receiptPhotoUrl) {
+      alert("A photo of the BIR Official Receipt or deposit slip is required. Upload to Google Drive and paste the share link.");
+      return;
+    }
+
+    const orNum = `OR-${Date.now().toString().slice(-6)}`;
+    const phpAmount = convertToPHP(Number(newPayment.amount), newPayment.currency, newPayment.currencyRate);
+    const phpDiscount = convertToPHP(Number(newPayment.discount||0), newPayment.currency, newPayment.currencyRate);
+    const p = {
+      id: `p_${lot.id}_${Date.now()}`,
+      orNumber: orNum,
+      date: newPayment.date,
+      amount: phpAmount,
+      currency: newPayment.currency,
+      currencyRate: Number(newPayment.currencyRate||1),
+      originalAmount: Number(newPayment.amount),
+      discount: phpDiscount,
+      originalDiscount: Number(newPayment.discount||0),
+      discountReason: newPayment.discountReason,
+      note: newPayment.note || "Payment",
+      type: newPayment.type, method: newPayment.method,
+      clientId: record.currentClientId,
+      salesAgentId: newPayment.salesAgentId || null,
+      commissionPaid: false,
+      recordedBy: currentUser.id, recordedAt: nowISO(),
+      deposited: newPayment.deposited, depositDate: newPayment.deposited ? newPayment.date : null,
+      depositAccount: newPayment.deposited ? newPayment.depositAccount : null,
+      receiptPhotoUrl: newPayment.receiptPhotoUrl || "",
+      voided: false,
+    };
+
+    const needsVerification = can(currentUser, "requireReceiptPhoto");
+    if (needsVerification && onSubmitPending) {
+      // Route to pending verifications
+      const pendingItem = {
+        id: uid("pv_"),
+        kind: "payment",
+        submittedAt: nowISO(),
+        submittedBy: currentUser.id,
+        lotId: lot.id,
+        lotDisplayId: lot.displayId,
+        lotSection: lot.section,
+        clientId: record.currentClientId,
+        clientName: clients[record.currentClientId]?.name || "—",
+        payment: p,
+        status: "pending",
+        notes: "",
+      };
+      onSubmitPending(pendingItem);
+      logAudit("submit_pending", "payment", p.id, `${currentUser.name} submitted ${orNum} ${peso(phpAmount)} for verification (lot #${lot.displayId})`);
+      alert(`Payment submitted for verification. An admin must approve it before it counts toward the ledger.`);
+    } else {
+      if (newPayment.type === "maintenance") {
+        onSave({...record, maintenancePayments: [...(record.maintenancePayments||[]), p]});
+      } else {
+        onSave({...record, payments: [...(record.payments||[]), p]});
+      }
+      logAudit("create", "payment", p.id, `Recorded ${orNum} ${peso(phpAmount)} for lot ${lot.displayId}${newPayment.currency!=="PHP"?` (${CURRENCIES[newPayment.currency].symbol}${newPayment.amount} ${newPayment.currency})`:""}`);
+    }
+    setNewPayment({date:today(), amount:"", note:"", method: "Cash", type: can(currentUser, "recordReservationOnly") ? "reservation" : "amortization", discount: 0, discountReason: "", deposited: false, depositAccount: "cash", salesAgentId: "", currency: "PHP", currencyRate: 1, receiptPhotoUrl: ""});
+  };
+
+  const voidPayment = (id) => {
+    const reason = prompt("Reason for voiding this payment:");
+    if (!reason) return;
+    onSave({...record, payments: (record.payments||[]).map(p => p.id===id ? {...p, voided: true, voidReason: reason, voidedBy: currentUser.id, voidedAt: nowISO()} : p)});
+    logAudit("void", "payment", id, `Voided: ${reason}`);
+  };
+
+  const toggleDeposit = (id) => {
+    const p = (record.payments||[]).find(x=>x.id===id);
+    if (!p) return;
+    const newDeposited = !p.deposited;
+    const account = newDeposited ? (prompt("Deposit to which account? (cash/bpi_op/bdo_dep/metro)", "bdo_dep") || "bdo_dep") : null;
+    onSave({...record, payments: (record.payments||[]).map(x => x.id===id ? {...x, deposited: newDeposited, depositDate: newDeposited ? today() : null, depositAccount: account} : x)});
+    logAudit(newDeposited ? "deposit" : "undeposit", "payment", id, `${newDeposited ? "Deposited to" : "Undeposited from"} ${account||"—"}`);
+  };
+
+  const removePayment = (id) => {
+    if (!confirm("Permanently delete this payment? Use Void instead if you need an audit trail.")) return;
+    onSave({...record, payments: (record.payments||[]).filter(p=>p.id!==id)});
+    logAudit("delete", "payment", id, "Payment deleted");
+  };
+
+  const saveClient = () => {
+    onSave({...record, lotPrice: Number(lotPriceDraft), maintenanceFee: Number(maintenanceDraft)}, { ...clients, [client.id]: clientDraft });
+    logAudit("update", "client", client.id, `Updated client info for ${clientDraft.name}`);
+    setEditing(false);
+  };
+
+  const assignNewClient = () => {
+    const newId = `C${Date.now().toString().slice(-6)}`;
+    const newClient = { id: newId, name: "New Client", contact: "", email:"", address:"", contractUrl:"", since: today(), notes: "", createdBy: currentUser.id };
+    const defaultPrice = Math.round((SECTIONS[lot.section].priceRange[0] + SECTIONS[lot.section].priceRange[1])/2);
+    onSave({ status:"reserved", currentClientId: newId, lotPrice: defaultPrice, payments: [], history: record.history||[], interments: [], maintenanceFee: Math.round(defaultPrice * 0.005), maintenancePayments: [] }, { ...clients, [newId]: newClient });
+    logAudit("create", "client", newId, `Assigned to lot ${lot.displayId}`);
+    setEditing(true);
+  };
+
+  const markForfeited = () => {
+    if (!record.currentClientId) return;
+    const reason = prompt("Reason for forfeiture:", "Client stopped payments") || "Client stopped payments";
+    const forfeitedEntry = {
+      clientId: record.currentClientId, forfeitedDate: today(),
+      forfeitedAmount: paidTotal, payments: record.payments || [],
+      reason, forfeitedBy: currentUser.id,
+    };
+    onSave({ status: "cancelled", currentClientId: null, lotPrice: record.lotPrice, payments: [], history: [...(record.history||[]), forfeitedEntry] });
+    logAudit("forfeit", "lot", lot.id, `Forfeited: ${reason}`);
+  };
+
+  const releaseAvailable = () => {
+    if (!confirm("Release this lot to Available?")) return;
+    onSave({ status:"available", currentClientId: null, lotPrice: 0, payments: [], history: record.history || [], interments: record.interments || [], maintenanceFee: 0, maintenancePayments: [] });
+    logAudit("release", "lot", lot.id, `Released to available`);
+  };
+
+  const reassignAfterForfeit = () => {
+    const newId = `C${Date.now().toString().slice(-6)}`;
+    const newClient = { id: newId, name: "New Client", contact:"", email:"", address:"", contractUrl:"", since: today(), notes:"", createdBy: currentUser.id };
+    onSave({ status:"reserved", currentClientId: newId, lotPrice: record.lotPrice, payments: [], history: record.history || [], interments: [], maintenanceFee: record.maintenanceFee, maintenancePayments: [] }, { ...clients, [newId]: newClient });
+    logAudit("reassign", "lot", lot.id, `Reassigned after forfeiture to new client ${newId}`);
+    setTab("current");
+    setEditing(true);
+  };
+
+  const addInterment = () => {
+    if (!newInterment.name) return;
+    const i = { id: `i_${lot.id}_${Date.now()}`, ...newInterment };
+    onSave({...record, interments: [...(record.interments||[]), i]});
+    logAudit("create", "interment", i.id, `Interred ${newInterment.name} at lot ${lot.displayId}`);
+    setNewInterment({ name: "", birthDate: "", deathDate: "", burialDate: "", relation: "", notes: "" });
+  };
+
+  const removeInterment = (id) => {
+    if (!confirm("Remove interment record?")) return;
+    onSave({...record, interments: (record.interments||[]).filter(i=>i.id!==id)});
+    logAudit("delete", "interment", id, "Interment removed");
+  };
+
+  const tabs = [{id:"current", label:"Current", icon:UserCheck}];
+  if (record.currentClientId) tabs.push({id:"plan", label:"Plan", icon:Calendar});
+  if (record.currentClientId) tabs.push({id:"docs", label:`Docs (${(record.documents||[]).length})`, icon:FileText});
+  if ((record.history||[]).length > 0) tabs.push({id:"history", label:`History (${record.history.length})`, icon:History});
+  if (record.currentClientId || (record.interments||[]).length > 0) tabs.push({id:"interments", label:`Interments (${(record.interments||[]).length})`, icon:Cross});
+  if (record.currentClientId) tabs.push({id:"maintenance", label:"Maintenance", icon:Calendar});
+
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="absolute inset-0 bg-stone-900/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:w-[560px] h-full overflow-y-auto" style={{background:"linear-gradient(180deg, #f5f5f7 0%, #f0e9d5 100%)"}}>
+        <div className="sticky top-0 z-10 px-6 py-4 border-b border-stone-300" style={{background:cfg.color}}>
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-[10px] tracking-[0.3em]" style={{color:cfg.text}}>{SECTIONS[lot.section].label.toUpperCase()} · LOT NUMBER</div>
+              <div className="display-font text-5xl leading-none" style={{color:cfg.text}}>#{lot.displayId}</div>
+              <div className="text-xs mt-1 italic" style={{color:cfg.text}}>{lot.section==="cv" ? `Wall ${lot.wall}, Row ${lot.row+1}, Niche ${lot.col+1}` : `${TIERS[lot.tier]?.label || ""} · Row ${lot.row+1}, Col ${lot.col+1}`}</div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/10" style={{color:cfg.text}}><X className="w-5 h-5"/></button>
+          </div>
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold" style={{background:"rgba(255,255,255,0.4)", color:cfg.text}}>
+            <span className="w-2 h-2 rounded-full" style={{background:cfg.dot}} />{cfg.label}
+          </div>
+        </div>
+
+        <div className="flex border-b border-stone-300 bg-stone-100/60 overflow-x-auto">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            return (
+              <button key={t.id} onClick={()=>setTab(t.id)} className={`flex-1 min-w-fit px-3 py-2 text-xs font-semibold transition flex items-center justify-center gap-1 whitespace-nowrap ${tab===t.id?"bg-white text-stone-900 border-b-2 border-stone-900":"text-stone-500"}`}>
+                <Icon className="w-3 h-3"/>{t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="p-6 space-y-5">
+          {tab === "current" && (!client ? (
+            <div className="text-center py-10">
+              <Circle className="w-12 h-12 text-stone-400 mx-auto mb-3" />
+              <div className="display-font text-2xl text-stone-700 mb-2">{status === "cancelled" ? "Cancelled — Reassign?" : "Lot Available"}</div>
+              <div className="text-sm text-stone-500 mb-5">{status === "cancelled" ? "Previous client was cancelled/forfeited. Assign a new client to restart payment tracking." : "No client is currently assigned."}</div>
+              <button onClick={status === "cancelled" ? reassignAfterForfeit : assignNewClient} className="px-5 py-2.5 bg-stone-900 text-stone-50 rounded-md text-sm hover:bg-stone-700 transition">
+                <Plus className="w-4 h-4 inline mr-1"/> {status === "cancelled" ? "Assign New Client" : "Assign Client"}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="bg-white/70 rounded-lg border border-stone-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[10px] tracking-widest text-stone-500 font-semibold">CLIENT INFORMATION</div>
+                  {!editing && can(currentUser, "editClient") && <button onClick={()=>setEditing(true)} className="text-xs text-stone-600 hover:text-stone-900 underline">Edit</button>}
+                </div>
+                {editing ? (
+                  <div className="space-y-2">
+                    <input type="text" value={clientDraft.name||""} onChange={e=>setClientDraft({...clientDraft, name:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm display-font text-lg" placeholder="Client name" />
+                    <input type="text" value={clientDraft.contact||""} onChange={e=>setClientDraft({...clientDraft, contact:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" placeholder="Contact number" />
+                    <input type="email" value={clientDraft.email||""} onChange={e=>setClientDraft({...clientDraft, email:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" placeholder="Email" />
+                    <input type="text" value={clientDraft.address||""} onChange={e=>setClientDraft({...clientDraft, address:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" placeholder="Address" />
+                    <input type="url" value={clientDraft.contractUrl||""} onChange={e=>setClientDraft({...clientDraft, contractUrl:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" placeholder="Contract Google Drive URL" />
+                    {can(currentUser, "editLotPrice") && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-stone-500">Lot Price ₱</label>
+                          <input type="number" value={lotPriceDraft} onChange={e=>setLotPriceDraft(e.target.value)} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-stone-500">Annual Maint. ₱</label>
+                          <input type="number" value={maintenanceDraft} onChange={e=>setMaintenanceDraft(e.target.value)} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-2">
+                      <button onClick={saveClient} className="flex-1 px-3 py-2 bg-stone-900 text-stone-50 rounded text-sm hover:bg-stone-700"><Save className="w-4 h-4 inline mr-1"/>Save</button>
+                      <button onClick={()=>{setClientDraft(client); setLotPriceDraft(record.lotPrice); setMaintenanceDraft(record.maintenanceFee); setEditing(false);}} className="px-3 py-2 bg-stone-200 rounded text-sm hover:bg-stone-300">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="display-font text-2xl text-stone-900">{client.name}</div>
+                    <div className="text-sm text-stone-600">{client.contact}</div>
+                    {client.email && <div className="text-sm text-stone-600">{client.email}</div>}
+                    {client.address && <div className="text-xs text-stone-500 mt-1">{client.address}</div>}
+                    <div className="text-xs text-stone-500 mt-2">Client since {client.since} · Annual maintenance: {peso(record.maintenanceFee)}</div>
+                    {client.contractUrl ? (
+                      <a href={client.contractUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-stone-900 text-stone-50 rounded text-xs hover:bg-stone-700">
+                        <ExternalLink className="w-3 h-3"/> View Contract
+                      </a>
+                    ) : (
+                      <div className="text-xs text-amber-700 mt-2 italic flex items-center gap-1"><AlertTriangle className="w-3 h-3"/>No contract URL on file</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg p-4" style={{background:"linear-gradient(140deg, #1d1d1f 0%, #2c2c2e 100%)", color:"#f5f5f7"}}>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>CONTRACT</span>
+                  <span className="display-font text-2xl" style={{color:"#f5f5f7"}}>{peso(record.lotPrice)}</span>
+                </div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>PAID (NET)</span>
+                  <span className="display-font text-2xl" style={{color:"#7dd99a"}}>{peso(paidTotal)}</span>
+                </div>
+                <div className="flex items-baseline justify-between mb-3">
+                  <span className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>BALANCE</span>
+                  <span className="display-font text-2xl" style={{color: balance>0?"#fcd34d":"#7dd99a"}}>{peso(Math.max(0,balance))}</span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{background:"#3d2e22"}}>
+                  <div className="h-full transition-all" style={{width:`${progress}%`, background:"linear-gradient(90deg, #5fa377 0%, #7dd99a 100%)"}} />
+                </div>
+                <div className="text-[10px] mt-1 text-right" style={{color:"#9dc9ff"}}>{progress.toFixed(1)}% paid</div>
+              </div>
+
+              <div className="bg-white/70 rounded-lg border border-stone-200 p-4">
+                <div className="text-[10px] tracking-widest text-stone-500 font-semibold mb-3">RECORD PAYMENT</div>
+                {inLockedMonth(newPayment.date, lockedMonths) && (
+                  <div className="mb-2 px-2 py-1.5 bg-red-50 border border-red-200 rounded text-xs text-red-800 flex items-center gap-1">
+                    <Ban className="w-3 h-3"/> Period {monthKey(newPayment.date)} is locked.
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <input type="date" value={newPayment.date} onChange={e=>setNewPayment({...newPayment, date:e.target.value})} className="px-2 py-2 rounded border border-stone-300 bg-white text-xs" />
+                  <div className="flex gap-1">
+                    <select value={newPayment.currency} onChange={e=>setNewPayment({...newPayment, currency:e.target.value, currencyRate:CURRENCIES[e.target.value].rate})} className="px-1 py-2 rounded border border-stone-300 bg-white text-xs w-16">
+                      {Object.keys(CURRENCIES).map(c => <option key={c}>{c}</option>)}
+                    </select>
+                    <input type="number" placeholder={`Amt ${CURRENCIES[newPayment.currency].symbol}`} value={newPayment.amount} onChange={e=>setNewPayment({...newPayment, amount:e.target.value})} className="flex-1 px-2 py-2 rounded border border-stone-300 bg-white text-xs" />
+                  </div>
+                  <select value={newPayment.type} onChange={e=>setNewPayment({...newPayment, type:e.target.value})} disabled={can(currentUser, "recordReservationOnly")} className="px-2 py-2 rounded border border-stone-300 bg-white text-xs">
+                    {can(currentUser, "recordReservationOnly") ? (
+                      <option value="reservation">Reservation</option>
+                    ) : (
+                      <>
+                        <option value="reservation">Reservation</option>
+                        <option value="downpayment">Down Payment</option>
+                        <option value="amortization">Monthly Amortization</option>
+                        <option value="spotcash">Spot Cash</option>
+                        <option value="discounted">Discounted</option>
+                        <option value="interment">Interment Fee</option>
+                        <option value="maintenance">Maintenance Fee</option>
+                      </>
+                    )}
+                  </select>
+                  <select value={newPayment.method} onChange={e=>setNewPayment({...newPayment, method:e.target.value})} className="px-2 py-2 rounded border border-stone-300 bg-white text-xs">
+                    {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
+                  </select>
+                  <input type="number" placeholder={`Disc ${CURRENCIES[newPayment.currency].symbol}`} value={newPayment.discount} onChange={e=>setNewPayment({...newPayment, discount:e.target.value})} className="px-2 py-2 rounded border border-stone-300 bg-white text-xs" />
+                  <input type="text" placeholder="Discount reason" value={newPayment.discountReason} onChange={e=>setNewPayment({...newPayment, discountReason:e.target.value})} className="px-2 py-2 rounded border border-stone-300 bg-white text-xs" />
+                </div>
+                {newPayment.currency !== "PHP" && (
+                  <div className="mb-2 flex items-center gap-2 text-xs">
+                    <label className="text-stone-500">Rate:</label>
+                    <input type="number" step="0.01" value={newPayment.currencyRate} onChange={e=>setNewPayment({...newPayment, currencyRate:e.target.value})} className="px-2 py-1 rounded border border-stone-300 text-xs w-20"/>
+                    <span className="text-stone-500">PHP/{newPayment.currency} · ≈ {peso(Number(newPayment.amount||0)*Number(newPayment.currencyRate||1))}</span>
+                  </div>
+                )}
+                {(["downpayment","amortization","spotcash","discounted","reservation"].includes(newPayment.type)) && agents.filter(a=>a.active).length > 0 && (
+                  <select value={newPayment.salesAgentId} onChange={e=>setNewPayment({...newPayment, salesAgentId:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 bg-white text-xs mb-2">
+                    <option value="">No sales agent</option>
+                    {agents.filter(a=>a.active).map(a => <option key={a.id} value={a.id}>{a.name} ({a.commissionRate}%)</option>)}
+                  </select>
+                )}
+                <input type="text" placeholder="Note (optional)" value={newPayment.note} onChange={e=>setNewPayment({...newPayment, note:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 bg-white text-xs mb-2" />
+                <label className="flex items-center gap-2 text-xs text-stone-600 mb-2">
+                  <input type="checkbox" checked={newPayment.deposited} onChange={e=>setNewPayment({...newPayment, deposited:e.target.checked})} />
+                  Mark as deposited
+                  {newPayment.deposited && (
+                    <select value={newPayment.depositAccount} onChange={e=>setNewPayment({...newPayment, depositAccount:e.target.value})} className="ml-2 px-2 py-1 rounded border border-stone-300 bg-white text-xs">
+                      {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  )}
+                </label>
+                {(can(currentUser, "requireReceiptPhoto") || newPayment.receiptPhotoUrl) && (
+                  <div className="mb-2">
+                    <label className="text-[10px] tracking-widest text-stone-600 font-semibold flex items-center gap-1">
+                      <Receipt className="w-3 h-3"/> RECEIPT PHOTO URL {can(currentUser, "requireReceiptPhoto") && <span className="text-red-700">*required</span>}
+                    </label>
+                    <input type="url" placeholder="Paste Google Drive share link of OR/deposit slip photo" value={newPayment.receiptPhotoUrl} onChange={e=>setNewPayment({...newPayment, receiptPhotoUrl:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 bg-white text-xs"/>
+                    <div className="text-[10px] text-stone-500 italic mt-1">Take a photo of the BIR OR or deposit slip → upload to Google Drive → paste share link here.</div>
+                  </div>
+                )}
+                {can(currentUser, "requireReceiptPhoto") && (
+                  <div className="mb-2 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800 flex items-start gap-1">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5"/>
+                    <span>Your payments are submitted for admin approval before counting toward the ledger. You can check status on the Pending tab.</span>
+                  </div>
+                )}
+                <button onClick={addPayment} disabled={inLockedMonth(newPayment.date, lockedMonths)} className="w-full py-2 bg-emerald-700 hover:bg-emerald-600 disabled:bg-stone-300 disabled:cursor-not-allowed text-stone-50 rounded text-sm"><Plus className="w-4 h-4 inline mr-1"/>{can(currentUser, "requireReceiptPhoto") ? "Submit for Verification" : "Add Payment"}</button>
+              </div>
+
+              <div>
+                <div className="text-[10px] tracking-widest text-stone-500 font-semibold mb-2 px-1">PAYMENT HISTORY ({(record.payments||[]).length})</div>
+                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  {(record.payments||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(p => {
+                    const account = bankAccounts.find(a=>a.id===p.depositAccount);
+                    return (
+                      <div key={p.id} className={`bg-white/70 rounded border border-stone-200 px-3 py-2 ${p.voided?"opacity-50":""}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`display-font text-lg text-stone-900 ${p.voided?"line-through":""}`}>{peso(netPaymentAmount(p))}</span>
+                              {p.discount > 0 && <span className="text-xs text-amber-700">(-{peso(p.discount)} disc)</span>}
+                              {p.voided && <span className="badge" style={{background:"#d4d4d4", color:"#525252"}}>VOIDED</span>}
+                            </div>
+                            <div className="text-[10px] text-stone-500">{p.orNumber} · {p.date} · {p.method} · {p.note}</div>
+                            {p.discountReason && <div className="text-[10px] text-amber-700 italic">{p.discountReason}</div>}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {!p.voided && (
+                              <button onClick={()=>toggleDeposit(p.id)} className={`badge ${p.deposited?"":"opacity-60"}`} style={{background:p.deposited?"#a8d5ba":"#fde4a8", color:p.deposited?"#1f4a2d":"#7a5a0f"}} title={account?.name}>
+                                {p.deposited ? <><CheckCircle2 className="w-3 h-3"/>Deposited</> : <><Wallet className="w-3 h-3"/>Pending</>}
+                              </button>
+                            )}
+                            <div className="flex gap-1">
+                              {!p.voided && can(currentUser, "voidPayment") && <button onClick={()=>voidPayment(p.id)} className="text-stone-400 hover:text-amber-600" title="Void payment"><Ban className="w-3.5 h-3.5"/></button>}
+                              {can(currentUser, "deletePayment") && <button onClick={()=>removePayment(p.id)} className="text-stone-400 hover:text-red-600" title="Delete"><Trash2 className="w-3.5 h-3.5"/></button>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(record.payments||[]).length === 0 && <div className="text-xs text-stone-400 italic py-4 text-center">No payments recorded yet.</div>}
+                </div>
+              </div>
+
+              {(can(currentUser, "forfeitLot") || can(currentUser, "releaseLot")) && (
+                <div className="border-t border-stone-300 pt-4 flex gap-2">
+                  {can(currentUser, "forfeitLot") && <button onClick={markForfeited} className="flex-1 px-3 py-2 bg-stone-800 text-stone-50 rounded text-xs hover:bg-black"><Ban className="w-3 h-3 inline mr-1"/>Mark Forfeited</button>}
+                  {can(currentUser, "releaseLot") && <button onClick={releaseAvailable} className="flex-1 px-3 py-2 bg-stone-200 text-stone-700 rounded text-xs hover:bg-stone-300">Release Lot</button>}
+                </div>
+              )}
+            </>
+          ))}
+
+          {tab === "history" && (
+            <div className="space-y-3">
+              <div className="text-[10px] tracking-widest text-stone-500 font-semibold">PREVIOUS TENANTS</div>
+              {(record.history||[]).map((h, idx) => {
+                const c = clients[h.clientId];
+                return (
+                  <div key={idx} className="bg-white/70 rounded-lg border border-stone-200 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="badge" style={{background:"#3d3027", color:"#e8e2d3"}}><Ban className="w-3 h-3"/>FORFEITED</div>
+                      <div className="text-xs text-stone-500">{h.forfeitedDate}</div>
+                    </div>
+                    <div className="display-font text-xl text-stone-900">{c?.name || "Unknown Client"}</div>
+                    <div className="text-xs text-stone-500 italic mb-3">{h.reason}</div>
+                    <div className="flex items-baseline justify-between mb-2 px-2 py-2 bg-stone-100 rounded">
+                      <span className="text-[10px] tracking-widest text-stone-600">FORFEITED REVENUE</span>
+                      <span className="display-font text-lg text-stone-900">{peso(h.forfeitedAmount)}</span>
+                    </div>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-stone-600 hover:text-stone-900">View {(h.payments||[]).length} payment(s)</summary>
+                      <div className="mt-2 space-y-1">
+                        {(h.payments||[]).map(p => (
+                          <div key={p.id} className="flex justify-between px-2 py-1 bg-stone-50 rounded">
+                            <span className="text-stone-600">{p.date} · {p.orNumber} · {p.note}</span>
+                            <span className="display-font text-stone-900">{peso(netPaymentAmount(p))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {tab === "interments" && (
+            <div className="space-y-3">
+              <div className="text-[10px] tracking-widest text-stone-500 font-semibold">INTERRED PERSONS</div>
+              {(record.interments||[]).length === 0 && <div className="text-xs text-stone-400 italic text-center py-4">No interment records yet.</div>}
+              {(record.interments||[]).map(i => (
+                <div key={i.id} className="bg-white/70 rounded-lg border border-stone-200 p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="display-font text-lg text-stone-900">{i.name}</div>
+                      <div className="text-xs text-stone-500">{i.birthDate} — {i.deathDate}</div>
+                      <div className="text-xs text-stone-600 mt-1">Buried: {i.burialDate}</div>
+                      {i.relation && <div className="text-xs text-stone-500 italic">{i.relation}</div>}
+                      {i.notes && <div className="text-xs text-stone-600 mt-1">{i.notes}</div>}
+                    </div>
+                    <button onClick={()=>removeInterment(i.id)} className="text-stone-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5"/></button>
+                  </div>
+                </div>
+              ))}
+              <div className="bg-stone-50 rounded-lg border border-dashed border-stone-300 p-4">
+                <div className="text-[10px] tracking-widest text-stone-500 font-semibold mb-3">ADD INTERMENT</div>
+                <div className="space-y-2">
+                  <input type="text" placeholder="Full name" value={newInterment.name} onChange={e=>setNewInterment({...newInterment, name:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className="text-[10px] text-stone-500">Birth Date</label><input type="date" value={newInterment.birthDate} onChange={e=>setNewInterment({...newInterment, birthDate:e.target.value})} className="w-full px-2 py-1.5 rounded border border-stone-300 bg-white text-xs" /></div>
+                    <div><label className="text-[10px] text-stone-500">Death Date</label><input type="date" value={newInterment.deathDate} onChange={e=>setNewInterment({...newInterment, deathDate:e.target.value})} className="w-full px-2 py-1.5 rounded border border-stone-300 bg-white text-xs" /></div>
+                  </div>
+                  <div><label className="text-[10px] text-stone-500">Burial/Interment Date</label><input type="date" value={newInterment.burialDate} onChange={e=>setNewInterment({...newInterment, burialDate:e.target.value})} className="w-full px-2 py-1.5 rounded border border-stone-300 bg-white text-xs" /></div>
+                  <input type="text" placeholder="Relation to client" value={newInterment.relation} onChange={e=>setNewInterment({...newInterment, relation:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-sm" />
+                  <textarea placeholder="Notes" value={newInterment.notes} onChange={e=>setNewInterment({...newInterment, notes:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 bg-white text-xs" rows={2}/>
+                  <button onClick={addInterment} className="w-full py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm"><Plus className="w-4 h-4 inline mr-1"/>Add Interment</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "plan" && (
+            <PaymentPlanTab record={record} onSave={onSave} logAudit={logAudit} lotDisplayId={lot.displayId}/>
+          )}
+
+          {tab === "docs" && (
+            <DocumentsTab record={record} onSave={onSave} logAudit={logAudit} lotDisplayId={lot.displayId}/>
+          )}
+
+          {tab === "maintenance" && (
+            <div className="space-y-3">
+              <div className="rounded-lg p-4" style={{background:"linear-gradient(135deg, #5a4a2a 0%, #7a5a0f 100%)", color:"#f5f5f7"}}>
+                <div className="text-[10px] tracking-widest" style={{color:"#fde4a8"}}>ANNUAL MAINTENANCE FEE</div>
+                <div className="display-font text-3xl">{peso(record.maintenanceFee)}</div>
+                <div className="text-xs mt-1" style={{color:"#fde4a8"}}>Due each January 15</div>
+              </div>
+              <div className="text-[10px] tracking-widest text-stone-500 font-semibold px-1">PAYMENT HISTORY</div>
+              <div className="space-y-1.5">
+                {(record.maintenancePayments||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(p => (
+                  <div key={p.id} className="bg-white/70 rounded border border-stone-200 px-3 py-2 flex items-center justify-between">
+                    <div>
+                      <div className="display-font text-base text-stone-900">{peso(p.amount)}</div>
+                      <div className="text-[10px] text-stone-500">{p.orNumber} · {p.date} · {p.note}</div>
+                    </div>
+                    <div className="badge" style={{background:"#a8d5ba", color:"#1f4a2d"}}>PAID</div>
+                  </div>
+                ))}
+                {(record.maintenancePayments||[]).length === 0 && <div className="text-xs text-stone-400 italic text-center py-4">No maintenance payments yet.</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ COLUMN FILTER HELPER ============
+function ColumnHeader({ label, sortKey, sortState, setSortState, filterKey, filterState, setFilterState, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const isSorted = sortState?.key === sortKey;
+  const filterActive = filterState?.[filterKey]?.length > 0;
+  const currentFilter = filterState?.[filterKey] || [];
+
+  const toggleSort = () => {
+    if (!sortKey) return;
+    setSortState(s => {
+      if (s?.key !== sortKey) return { key: sortKey, dir: "asc" };
+      if (s.dir === "asc") return { key: sortKey, dir: "desc" };
+      return null;
+    });
+  };
+
+  const toggleFilter = (val) => {
+    setFilterState(f => {
+      const cur = f[filterKey] || [];
+      const next = cur.includes(val) ? cur.filter(v=>v!==val) : [...cur, val];
+      return { ...f, [filterKey]: next };
+    });
+  };
+
+  return (
+    <div ref={ref} style={{position:"relative", display:"inline-flex", alignItems:"center", gap:6}}>
+      <span onClick={toggleSort} style={{cursor: sortKey ? "pointer" : "default"}}>
+        {label}
+        {sortKey && <span className={`sort-icon ${isSorted?"active":""}`}>
+          {isSorted && sortState.dir === "asc" ? <ChevronUp className="w-3 h-3 inline" /> : isSorted && sortState.dir === "desc" ? <ChevronDown className="w-3 h-3 inline" /> : <ChevronsUpDown className="w-3 h-3 inline"/>}
+        </span>}
+      </span>
+      {options && options.length > 0 && (
+        <span className={`col-filter ${filterActive?"active":""}`} onClick={()=>setOpen(!open)}><Filter className="w-2.5 h-2.5"/>{filterActive ? currentFilter.length : ""}</span>
+      )}
+      {open && options && (
+        <div className="filter-dropdown" onMouseDown={e=>e.stopPropagation()}>
+          <label onClick={()=>setFilterState(f=>({...f, [filterKey]:[]}))} style={{borderBottom:"1px solid #e8e0cd"}}>
+            <span style={{fontWeight:600}}>Clear all</span>
+          </label>
+          {options.map(o => (
+            <label key={o.value}>
+              <input type="checkbox" checked={currentFilter.includes(o.value)} onChange={()=>toggleFilter(o.value)} />
+              <span>{o.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ LEDGER VIEW ============
+function LedgerView({ data, allLots, save, logAudit, currentUser }) {
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [sortState, setSortState] = useState({ key: "date", dir: "desc" });
+  const [filterState, setFilterState] = useState({});
+
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+
+  const transactions = useMemo(() => {
+    const txs = [];
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      const lot = lotsById[lotId];
+      const sectionLabel = lot ? SECTIONS[lot.section].label : "—";
+      // Map raw payment types to higher-level source categories matching D7 Bohol reporting
+      const typeToSource = {
+        reservation: "Reservation",
+        downpayment: "Down Payment",
+        amortization: "Monthly Amort.",
+        sale: "Monthly Amort.",
+        spotcash: "Spot Cash",
+        discounted: "Discounted",
+        interment: "Interment Fee",
+      };
+      (r.payments||[]).forEach(p => {
+        const c = data.clients[p.clientId];
+        txs.push({
+          ...p, lotId, lotDisplayId: lot?.displayId, sectionId: lot?.section, sectionLabel,
+          clientName: c?.name || "—", source: typeToSource[p.type] || "Active Sale",
+        });
+      });
+      (r.maintenancePayments||[]).forEach(p => {
+        const c = data.clients[p.clientId];
+        txs.push({
+          ...p, lotId, lotDisplayId: lot?.displayId, sectionId: lot?.section, sectionLabel,
+          clientName: c?.name || "—", source: "Maintenance Fee",
+        });
+      });
+      (r.history||[]).forEach(h => {
+        (h.payments||[]).forEach(p => {
+          const c = data.clients[p.clientId];
+          txs.push({
+            ...p, lotId, lotDisplayId: lot?.displayId, sectionId: lot?.section, sectionLabel,
+            clientName: c?.name || "—", source: "Forfeited Revenue",
+          });
+        });
+      });
+    });
+    return txs;
+  }, [data, lotsById]);
+
+  const unique = (key) => [...new Set(transactions.map(t => t[key]).filter(Boolean))].sort();
+
+  const filtered = useMemo(() => {
+    let arr = transactions.filter(t => {
+      if (from && t.date < from) return false;
+      if (to && t.date > to) return false;
+      for (const [k, vals] of Object.entries(filterState)) {
+        if (!vals || vals.length === 0) continue;
+        if (k === "deposited") {
+          const v = t.deposited ? "Deposited" : "Pending";
+          if (!vals.includes(v)) return false;
+        } else if (!vals.includes(t[k])) return false;
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!String(t.lotDisplayId).includes(q) && !t.clientName.toLowerCase().includes(q) && !(t.note||"").toLowerCase().includes(q) && !(t.orNumber||"").toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+    if (sortState) {
+      arr = arr.slice().sort((a,b) => {
+        let va = a[sortState.key], vb = b[sortState.key];
+        if (typeof va === "number") return sortState.dir === "asc" ? va-vb : vb-va;
+        va = String(va||""); vb = String(vb||"");
+        return sortState.dir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+    }
+    return arr;
+  }, [transactions, search, from, to, filterState, sortState]);
+
+  const totals = useMemo(() => {
+    let total = 0, active = 0, forfeit = 0, maint = 0, deposited = 0, undeposited = 0;
+    filtered.forEach(t => {
+      if (t.voided) return;
+      const net = netPaymentAmount(t);
+      total += net;
+      if (t.source === "Forfeited Revenue") forfeit += net;
+      else if (t.source === "Maintenance Fee") maint += net;
+      else active += net; // All other payment types count as sales activity
+      if (t.deposited) deposited += net; else undeposited += net;
+    });
+    return { total, active, forfeit, maint, deposited, undeposited };
+  }, [filtered]);
+
+  const toggleDeposit = (lotId, paymentId) => {
+    const r = data.lots[lotId];
+    if (!r) return;
+    const inSale = (r.payments||[]).some(p=>p.id===paymentId);
+    const collection = inSale ? r.payments : r.maintenancePayments;
+    const p = collection.find(x=>x.id===paymentId);
+    if (!p) return;
+    const newDeposited = !p.deposited;
+    const account = newDeposited ? (prompt("Deposit to which account?", "bdo_dep") || "bdo_dep") : null;
+    const updater = inSale ? { payments: r.payments.map(x => x.id===paymentId ? {...x, deposited: newDeposited, depositDate: newDeposited ? today() : null, depositAccount: account} : x) }
+                           : { maintenancePayments: r.maintenancePayments.map(x => x.id===paymentId ? {...x, deposited: newDeposited, depositDate: newDeposited ? today() : null, depositAccount: account} : x) };
+    save({...data, lots: {...data.lots, [lotId]: {...r, ...updater}}});
+    logAudit(newDeposited ? "deposit" : "undeposit", "payment", paymentId, `Toggled deposit for ${p.orNumber}`);
+  };
+
+  const exportExcel = () => {
+    const rows = filtered.map(t => ({
+      Date: t.date, "OR Number": t.orNumber, "Lot #": t.lotDisplayId, Section: t.sectionLabel,
+      "Client ID": t.clientId, Client: t.clientName, Description: t.note, Source: t.source,
+      Method: t.method, "Gross Amount": t.amount, Discount: t.discount||0, "Net Amount": netPaymentAmount(t),
+      Deposited: t.deposited ? "YES" : "NO", "Deposit Account": data.bankAccounts.find(a=>a.id===t.depositAccount)?.name||"",
+      Voided: t.voided ? "YES" : "NO",
+      "Debit (Cash)": t.voided ? 0 : netPaymentAmount(t), "Credit (Revenue)": t.voided ? 0 : netPaymentAmount(t),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:12},{wch:14},{wch:8},{wch:14},{wch:12},{wch:24},{wch:24},{wch:18},{wch:14},{wch:14},{wch:12},{wch:14},{wch:10},{wch:20},{wch:8},{wch:14},{wch:14}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ledger");
+    XLSX.writeFile(wb, `cemetery_ledger_${today()}.xlsx`);
+  };
+
+  const sourceOpts = [
+    {value:"Reservation", label:"Reservation"},
+    {value:"Down Payment", label:"Down Payment"},
+    {value:"Monthly Amort.", label:"Monthly Amortization"},
+    {value:"Spot Cash", label:"Spot Cash"},
+    {value:"Discounted", label:"Discounted"},
+    {value:"Interment Fee", label:"Interment Fee"},
+    {value:"Forfeited Revenue", label:"Forfeited Revenue"},
+    {value:"Maintenance Fee", label:"Maintenance Fee"},
+  ];
+  const sectionOpts = Object.values(SECTIONS).map(s => ({value:s.label, label:s.label}));
+  const clientOpts = unique("clientName").map(c => ({value:c, label:c}));
+  const descOpts = unique("note").map(c => ({value:c, label:c}));
+  const methodOpts = unique("method").map(c => ({value:c, label:c}));
+  const depositOpts = [{value:"Deposited", label:"Deposited"}, {value:"Pending", label:"Pending Deposit"}];
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">General Ledger</h2>
+          <div className="text-sm text-stone-600 italic">All transactions across all lots, clients, and sections</div>
+        </div>
+        <button onClick={exportExcel} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2">
+          <Download className="w-4 h-4"/> Export to Excel
+        </button>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4 mb-4 flex flex-wrap gap-3 items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+          <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search OR, lot, client, note…" className="pl-10 pr-3 py-2 w-72 rounded border border-stone-300 text-sm" />
+        </div>
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-stone-500">From</label>
+          <input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="px-2 py-2 rounded border border-stone-300 text-sm" />
+        </div>
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-stone-500">To</label>
+          <input type="date" value={to} onChange={e=>setTo(e.target.value)} className="px-2 py-2 rounded border border-stone-300 text-sm" />
+        </div>
+        <button onClick={()=>{setFilterState({}); setSearch(""); setFrom(""); setTo("");}} className="px-3 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded text-xs">Clear All</button>
+        <div className="ml-auto flex flex-wrap items-center gap-4 text-sm">
+          <div><span className="text-stone-500 text-xs">Sales:</span> <span className="display-font text-base text-emerald-700">{peso(totals.active)}</span></div>
+          <div><span className="text-stone-500 text-xs">Forfeit:</span> <span className="display-font text-base text-amber-700">{peso(totals.forfeit)}</span></div>
+          <div><span className="text-stone-500 text-xs">Maint:</span> <span className="display-font text-base text-stone-700">{peso(totals.maint)}</span></div>
+          <div><span className="text-stone-500 text-xs">Deposited:</span> <span className="display-font text-base text-emerald-700">{peso(totals.deposited)}</span></div>
+          <div><span className="text-stone-500 text-xs">Pending:</span> <span className="display-font text-base text-amber-700">{peso(totals.undeposited)}</span></div>
+          <div><span className="text-stone-500 text-xs">Total:</span> <span className="display-font text-lg text-stone-900">{peso(totals.total)}</span></div>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <div style={{maxHeight:"65vh", overflow:"auto"}}>
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th><ColumnHeader label="Date" sortKey="date" sortState={sortState} setSortState={setSortState} /></th>
+                <th><ColumnHeader label="OR #" sortKey="orNumber" sortState={sortState} setSortState={setSortState} /></th>
+                <th><ColumnHeader label="Lot #" sortKey="lotDisplayId" sortState={sortState} setSortState={setSortState} /></th>
+                <th><ColumnHeader label="Section" sortKey="sectionLabel" sortState={sortState} setSortState={setSortState} filterKey="sectionLabel" filterState={filterState} setFilterState={setFilterState} options={sectionOpts} /></th>
+                <th><ColumnHeader label="Client" sortKey="clientName" sortState={sortState} setSortState={setSortState} filterKey="clientName" filterState={filterState} setFilterState={setFilterState} options={clientOpts} /></th>
+                <th><ColumnHeader label="Description" sortKey="note" sortState={sortState} setSortState={setSortState} filterKey="note" filterState={filterState} setFilterState={setFilterState} options={descOpts} /></th>
+                <th><ColumnHeader label="Method" sortKey="method" sortState={sortState} setSortState={setSortState} filterKey="method" filterState={filterState} setFilterState={setFilterState} options={methodOpts} /></th>
+                <th><ColumnHeader label="Source" sortKey="source" sortState={sortState} setSortState={setSortState} filterKey="source" filterState={filterState} setFilterState={setFilterState} options={sourceOpts} /></th>
+                <th><ColumnHeader label="Deposit" sortKey="deposited" sortState={sortState} setSortState={setSortState} filterKey="deposited" filterState={filterState} setFilterState={setFilterState} options={depositOpts} /></th>
+                <th style={{textAlign:"right"}}><ColumnHeader label="Amount" sortKey="amount" sortState={sortState} setSortState={setSortState} /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(t => (
+                <tr key={t.id} className={t.voided?"voided":""}>
+                  <td style={{whiteSpace:"nowrap"}}>{t.date}</td>
+                  <td style={{fontFamily:"monospace", fontSize:11}}>{t.orNumber}</td>
+                  <td>#{t.lotDisplayId}</td>
+                  <td><span className="badge" style={{background:SECTIONS[t.sectionId]?.color+"33", color:SECTIONS[t.sectionId]?.color}}>{t.sectionLabel}</span></td>
+                  <td>{t.clientName}</td>
+                  <td>{t.note}{t.discount > 0 && <span className="text-amber-700 text-xs"> (-{peso(t.discount)})</span>}</td>
+                  <td><span className="text-xs">{t.method}</span></td>
+                  <td>{(() => {
+                    const srcColors = {
+                      "Forfeited Revenue": ["#fde4a8","#7a5a0f"],
+                      "Maintenance Fee":   ["#e3d8b8","#5a4a2a"],
+                      "Reservation":       ["#cde3b8","#2d5018"],
+                      "Down Payment":      ["#a8d5ba","#1f4a2d"],
+                      "Monthly Amort.":    ["#b8dfc3","#1f4a2d"],
+                      "Spot Cash":         ["#7dd99a","#0f3a1a"],
+                      "Discounted":        ["#fde4a8","#7a5a0f"],
+                      "Interment Fee":     ["#e3d8b8","#5a4a2a"],
+                    };
+                    const [bg, fg] = srcColors[t.source] || ["#a8d5ba","#1f4a2d"];
+                    return <span className="badge" style={{background:bg, color:fg}}>{t.source}</span>;
+                  })()}</td>
+                  <td>{!t.voided && (can(currentUser, "bulkDeposit") ? <button onClick={()=>toggleDeposit(t.lotId, t.id)} className={`badge`} style={{background:t.deposited?"#a8d5ba":"#fde4a8", color:t.deposited?"#1f4a2d":"#7a5a0f", cursor:"pointer"}}>
+                    {t.deposited ? <><CheckCircle2 className="w-3 h-3"/>Yes</> : <><Wallet className="w-3 h-3"/>No</>}
+                  </button> : <span className="badge" style={{background:t.deposited?"#a8d5ba":"#fde4a8", color:t.deposited?"#1f4a2d":"#7a5a0f"}}>
+                    {t.deposited ? <><CheckCircle2 className="w-3 h-3"/>Yes</> : <><Wallet className="w-3 h-3"/>No</>}
+                  </span>)}</td>
+                  <td style={{textAlign:"right", fontWeight:600}}>{peso(netPaymentAmount(t))}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan="10" style={{textAlign:"center", padding:"40px", color:"#9b8866", fontStyle:"italic"}}>No transactions match your filters.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="text-xs text-stone-500 mt-2 italic">Showing {filtered.length} of {transactions.length} transactions</div>
+    </div>
+  );
+}
+
+// ============ EXPENSES VIEW ============
+function ExpensesView({ data, save, logAudit, currentUser }) {
+  const [newExp, setNewExp] = useState({ date: today(), category: "Maintenance", description: "", amount: "", vendor: "", paymentMethod: "Cash", fromAccount: "cash" });
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [cat, setCat] = useState("all");
+
+  const filtered = useMemo(() => (data.expenses||[]).filter(e => {
+    if (from && e.date < from) return false;
+    if (to && e.date > to) return false;
+    if (cat !== "all" && e.category !== cat) return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date)), [data.expenses, from, to, cat]);
+
+  const total = filtered.reduce((s,e)=>s+Number(e.amount||0), 0);
+  const byCat = useMemo(() => {
+    const m = {};
+    filtered.forEach(e => { m[e.category] = (m[e.category]||0) + Number(e.amount||0); });
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  }, [filtered]);
+
+  const addExpense = () => {
+    if (!newExp.amount || Number(newExp.amount) <= 0) return;
+    const e = { id: `e_${Date.now()}`, ...newExp, amount: Number(newExp.amount), recordedBy: currentUser.id };
+    save({...data, expenses: [...(data.expenses||[]), e]});
+    logAudit("create", "expense", e.id, `${e.category}: ${e.description} ₱${e.amount}`);
+    setNewExp({ date: today(), category: "Maintenance", description: "", amount: "", vendor: "", paymentMethod: "Cash", fromAccount: "cash" });
+  };
+  const removeExpense = (id) => {
+    if (!confirm("Move this expense to trash?")) return;
+    const exp = (data.expenses||[]).find(e=>e.id===id);
+    if (!exp) return;
+    const trashItem = {
+      id: uid("t_"), entityType: "expense", entity: exp,
+      label: `${exp.category}: ${exp.description} (${peso(exp.amount)})`,
+      deletedAt: nowISO(), deletedBy: currentUser.id,
+    };
+    save({...data, expenses: (data.expenses||[]).filter(e=>e.id!==id), trash: [...(data.trash||[]), trashItem]});
+    logAudit("delete", "expense", id, "Expense moved to trash");
+  };
+  const exportExcel = () => {
+    const rows = filtered.map(e => ({ Date: e.date, Category: e.category, Description: e.description, Vendor: e.vendor, Method: e.paymentMethod, "From Account": data.bankAccounts.find(a=>a.id===e.fromAccount)?.name||"", "Debit (Expense)": e.amount, "Credit (Cash)": e.amount }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+    XLSX.writeFile(wb, `cemetery_expenses_${today()}.xlsx`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Operating Expenses</h2>
+          <div className="text-sm text-stone-600 italic">Maintenance, salaries, utilities, and other costs</div>
+        </div>
+        <button onClick={exportExcel} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2">
+          <Download className="w-4 h-4"/> Export to Excel
+        </button>
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-4 space-y-4">
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">ADD EXPENSE</div>
+            <div className="space-y-2">
+              <input type="date" value={newExp.date} onChange={e=>setNewExp({...newExp, date:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+              <select value={newExp.category} onChange={e=>setNewExp({...newExp, category:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+              <input type="text" placeholder="Description" value={newExp.description} onChange={e=>setNewExp({...newExp, description:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+              <input type="text" placeholder="Vendor" value={newExp.vendor} onChange={e=>setNewExp({...newExp, vendor:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+              <select value={newExp.paymentMethod} onChange={e=>setNewExp({...newExp, paymentMethod:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+                {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
+              </select>
+              <select value={newExp.fromAccount} onChange={e=>setNewExp({...newExp, fromAccount:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+                {data.bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <input type="number" placeholder="Amount ₱" value={newExp.amount} onChange={e=>setNewExp({...newExp, amount:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+              <button onClick={addExpense} className="w-full py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm"><Plus className="w-4 h-4 inline"/> Add Expense</button>
+            </div>
+          </div>
+
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">BY CATEGORY</div>
+            <div className="space-y-2">
+              {byCat.map(([c, amt]) => (
+                <div key={c}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-stone-700">{c}</span>
+                    <span className="display-font text-stone-900">{peso(amt)}</span>
+                  </div>
+                  <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-full" style={{width:`${total?(amt/total)*100:0}%`, background:"linear-gradient(90deg, #a13838 0%, #c93a3a 100%)"}}/>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-2 mt-2 border-t border-stone-200 flex justify-between">
+                <span className="text-sm font-semibold text-stone-900">Total</span>
+                <span className="display-font text-xl text-stone-900">{peso(total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-12 lg:col-span-8">
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4 mb-4 flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-stone-500">From</label>
+              <input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="px-2 py-2 rounded border border-stone-300 text-sm" />
+            </div>
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-stone-500">To</label>
+              <input type="date" value={to} onChange={e=>setTo(e.target.value)} className="px-2 py-2 rounded border border-stone-300 text-sm" />
+            </div>
+            <select value={cat} onChange={e=>setCat(e.target.value)} className="px-3 py-2 rounded border border-stone-300 text-sm">
+              <option value="all">All categories</option>
+              {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+            <div style={{maxHeight:"65vh", overflowY:"auto"}}>
+              <table className="ledger">
+                <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Vendor</th><th>Method</th><th>From</th><th style={{textAlign:"right"}}>Amount</th><th></th></tr></thead>
+                <tbody>
+                  {filtered.map(e => (
+                    <tr key={e.id}>
+                      <td style={{whiteSpace:"nowrap"}}>{e.date}</td>
+                      <td><span className="badge" style={{background:"#f4a8a8", color:"#5e1a1a"}}>{e.category}</span></td>
+                      <td>{e.description}</td>
+                      <td>{e.vendor}</td>
+                      <td><span className="text-xs">{e.paymentMethod}</span></td>
+                      <td><span className="text-xs">{data.bankAccounts.find(a=>a.id===e.fromAccount)?.name||""}</span></td>
+                      <td style={{textAlign:"right", fontWeight:600}}>{peso(e.amount)}</td>
+                      <td><button onClick={()=>removeExpense(e.id)} className="text-stone-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5"/></button></td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && <tr><td colSpan="8" style={{textAlign:"center", padding:"40px", color:"#9b8866", fontStyle:"italic"}}>No expenses match your filters.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ CLIENTS VIEW ============
+function ClientsView({ data, save, allLots, currentUser, logAudit }) {
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({});
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClient, setNewClient] = useState({ name: "", contact: "", email: "", address: "", contractUrl: "", notes: "" });
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+
+  const createClient = () => {
+    if (!newClient.name) return alert("Client name is required.");
+    const id = `C${Date.now().toString().slice(-6)}`;
+    const c = {
+      id, name: newClient.name, contact: newClient.contact, email: newClient.email,
+      address: newClient.address, contractUrl: newClient.contractUrl,
+      since: today(), notes: newClient.notes, createdBy: currentUser.id,
+    };
+    save({...data, clients: {...data.clients, [id]: c}});
+    if (logAudit) logAudit("create", "client", id, `Created client ${c.name}`);
+    setShowNewClient(false);
+    setNewClient({ name: "", contact: "", email: "", address: "", contractUrl: "", notes: "" });
+    setSelectedId(id);
+  };
+
+  const clientList = useMemo(() => {
+    return Object.values(data.clients).map(c => {
+      let currentLots = [], historicalLots = [], totalPaid = 0, totalForfeited = 0, oldestUnpaid = null;
+      Object.entries(data.lots).forEach(([lotId, r]) => {
+        const lot = lotsById[lotId];
+        if (r.currentClientId === c.id) {
+          currentLots.push({ id: lotId, displayId: lot?.displayId, section: lot?.section });
+          const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+          totalPaid += paid;
+          // Find oldest unpaid balance
+          if (paid < r.lotPrice && r.status !== "cancelled" && r.status !== "paid") {
+            const last = (r.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+            const lastDate = last?.date || c.since;
+            if (!oldestUnpaid || lastDate < oldestUnpaid) oldestUnpaid = lastDate;
+          }
+        }
+        (r.history||[]).forEach(h => {
+          if (h.clientId === c.id) {
+            historicalLots.push({ id: lotId, displayId: lot?.displayId, section: lot?.section });
+            totalForfeited += h.forfeitedAmount || 0;
+          }
+        });
+      });
+      const daysOverdue = oldestUnpaid ? daysBetween(oldestUnpaid, today()) : 0;
+      return { ...c, currentLots, historicalLots, totalPaid, totalForfeited, oldestUnpaid, daysOverdue };
+    }).sort((a,b) => a.name.localeCompare(b.name));
+  }, [data, lotsById]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return clientList;
+    const q = search.toLowerCase();
+    return clientList.filter(c => c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
+  }, [clientList, search]);
+
+  const selected = selectedId ? clientList.find(c => c.id === selectedId) : null;
+  useEffect(() => { if (selected) setDraft(selected); }, [selectedId]);
+
+  const saveClient = () => {
+    save({...data, clients: {...data.clients, [selected.id]: { ...data.clients[selected.id], ...draft }}});
+    setEditing(false);
+  };
+
+  const exportClients = () => {
+    const rows = clientList.map(c => ({
+      "Client ID": c.id, Name: c.name, Contact: c.contact, Email: c.email, Address: c.address,
+      "Current Lots": c.currentLots.map(l=>`#${l.displayId}(${SECTIONS[l.section]?.label})`).join(", "),
+      "Forfeited Lots": c.historicalLots.map(l=>`#${l.displayId}`).join(", "),
+      "Total Paid": c.totalPaid, "Total Forfeited": c.totalForfeited, "Days Overdue": c.daysOverdue,
+      "Client Since": c.since, "Contract URL": c.contractUrl,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clients");
+    XLSX.writeFile(wb, `cemetery_clients_${today()}.xlsx`);
+  };
+
+  const soa = useMemo(() => {
+    if (!selected) return null;
+    const entries = [];
+    selected.currentLots.forEach(l => {
+      const r = data.lots[l.id];
+      entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `Lot #${l.displayId} contract`, debit: r.lotPrice, credit: 0, date: data.clients[selected.id].since });
+      (r.payments||[]).forEach(p => entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `${p.orNumber} ${p.note}${p.voided?" [VOIDED]":""}`, debit: 0, credit: p.voided?0:netPaymentAmount(p), date: p.date, voided: p.voided }));
+      (r.maintenancePayments||[]).forEach(p => entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `${p.orNumber} Maintenance`, debit: 0, credit: p.voided?0:netPaymentAmount(p), date: p.date }));
+    });
+    selected.historicalLots.forEach(l => {
+      const r = data.lots[l.id];
+      (r.history||[]).filter(h => h.clientId === selected.id).forEach(h => {
+        entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `Lot #${l.displayId} contract (forfeited)`, debit: r.lotPrice, credit: 0, date: data.clients[selected.id].since });
+        (h.payments||[]).forEach(p => entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `${p.orNumber} ${p.note}`, debit: 0, credit: p.voided?0:netPaymentAmount(p), date: p.date }));
+        entries.push({ lotId: l.id, lotDisplay: l.displayId, label: `Forfeited — ${h.reason}`, debit: 0, credit: r.lotPrice - h.forfeitedAmount, date: h.forfeitedDate, isForfeit: true });
+      });
+    });
+    entries.sort((a,b) => a.date.localeCompare(b.date));
+    let running = 0;
+    entries.forEach(e => { running += (e.debit||0) - (e.credit||0); e.balance = running; });
+    return entries;
+  }, [selected, data]);
+
+  const exportSOA = () => {
+    if (!soa || !selected) return;
+    const rows = soa.map(e => ({ Date: e.date, "Lot #": e.lotDisplay, Description: e.label, Debit: e.debit||"", Credit: e.credit||"", Balance: e.balance }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Statement");
+    XLSX.writeFile(wb, `SOA_${selected.name.replace(/ /g,"_")}_${today()}.xlsx`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Client Registry</h2>
+          <div className="text-sm text-stone-600 italic">{clientList.length} clients · contracts and statements of account</div>
+        </div>
+        <div className="flex gap-2">
+          {can(currentUser, "createClient") && (
+            <button onClick={()=>setShowNewClient(true)} className="px-4 py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm flex items-center gap-2">
+              <Plus className="w-4 h-4"/> New Client
+            </button>
+          )}
+          <button onClick={exportClients} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2">
+            <Download className="w-4 h-4"/> Export Client List
+          </button>
+        </div>
+      </div>
+
+      {showNewClient && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-stone-900/40 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full panel-shadow">
+            <div className="display-font text-2xl text-stone-900 mb-4">New Client</div>
+            <div className="space-y-2">
+              <input type="text" placeholder="Full name *" value={newClient.name} onChange={e=>setNewClient({...newClient, name:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="text" placeholder="Contact number" value={newClient.contact} onChange={e=>setNewClient({...newClient, contact:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="email" placeholder="Email" value={newClient.email} onChange={e=>setNewClient({...newClient, email:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="text" placeholder="Address" value={newClient.address} onChange={e=>setNewClient({...newClient, address:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="url" placeholder="Contract Google Drive URL" value={newClient.contractUrl} onChange={e=>setNewClient({...newClient, contractUrl:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <textarea placeholder="Notes" value={newClient.notes} onChange={e=>setNewClient({...newClient, notes:e.target.value})} rows={2} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <div className="flex gap-2 pt-2">
+                <button onClick={createClient} className="flex-1 py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm">Create Client</button>
+                <button onClick={()=>{setShowNewClient(false); setNewClient({ name: "", contact: "", email: "", address: "", contractUrl: "", notes: "" });}} className="px-4 py-2 bg-stone-200 rounded text-sm">Cancel</button>
+              </div>
+              <div className="text-[10px] text-stone-500 italic">Tip: After creating, find them in the list and assign them to a specific lot via the Map view.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-5">
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4 mb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients…" className="w-full pl-10 pr-3 py-2 rounded border border-stone-300 text-sm" />
+            </div>
+          </div>
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden" style={{maxHeight:"70vh", overflowY:"auto"}}>
+            {filtered.map(c => (
+              <button key={c.id} onClick={()=>{setSelectedId(c.id); setEditing(false);}}
+                className={`w-full px-4 py-3 text-left border-b border-stone-200 transition ${selectedId===c.id?"bg-amber-50":"hover:bg-stone-50"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="display-font text-lg text-stone-900">{c.name}</div>
+                    <div className="text-xs text-stone-500">{c.id} · {c.contact || "no contact"}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-stone-500">PAID</div>
+                    <div className="display-font text-sm text-emerald-700">{peso(c.totalPaid)}</div>
+                  </div>
+                </div>
+                <div className="mt-1 flex gap-1 flex-wrap">
+                  {c.currentLots.map(l => <span key={l.id} className="badge" style={{background:SECTIONS[l.section]?.color+"33", color:SECTIONS[l.section]?.color}}>#{l.displayId} {SECTIONS[l.section]?.label.split(" ")[0]}</span>)}
+                  {c.historicalLots.map(l => <span key={`h${l.id}`} className="badge" style={{background:"#3d3027", color:"#e8e2d3"}}>#{l.displayId} forfeit</span>)}
+                  {c.currentLots.length === 0 && c.historicalLots.length === 0 && <span className="text-[10px] text-stone-400 italic">No lots</span>}
+                  {!c.contractUrl && <span className="badge" style={{background:"#fde4a8", color:"#7a5a0f"}}><AlertTriangle className="w-2.5 h-2.5"/>No contract</span>}
+                  {c.daysOverdue > 90 && <span className="badge" style={{background:"#f4a8a8", color:"#5e1a1a"}}>{c.daysOverdue}d overdue</span>}
+                </div>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="px-4 py-8 text-center text-stone-400 italic text-sm">No clients found.</div>}
+          </div>
+        </div>
+
+        <div className="col-span-12 lg:col-span-7">
+          {!selected ? (
+            <div className="bg-white/60 rounded-lg border-2 border-dashed border-stone-300 p-12 text-center">
+              <Users className="w-12 h-12 mx-auto text-stone-400 mb-3"/>
+              <div className="display-font text-xl text-stone-600">Select a client to view their profile</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="text-[10px] tracking-widest text-stone-500">CLIENT</div>
+                    <div className="display-font text-3xl text-stone-900">{selected.name}</div>
+                    <div className="text-xs text-stone-500">{selected.id} · since {selected.since}</div>
+                  </div>
+                  {!editing && can(currentUser, "editClient") && <button onClick={()=>setEditing(true)} className="text-xs text-stone-600 hover:text-stone-900 underline">Edit</button>}
+                </div>
+                {editing ? (
+                  <div className="space-y-2">
+                    <input type="text" value={draft.name||""} onChange={e=>setDraft({...draft, name:e.target.value})} placeholder="Name" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+                    <input type="text" value={draft.contact||""} onChange={e=>setDraft({...draft, contact:e.target.value})} placeholder="Contact" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+                    <input type="email" value={draft.email||""} onChange={e=>setDraft({...draft, email:e.target.value})} placeholder="Email" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+                    <input type="text" value={draft.address||""} onChange={e=>setDraft({...draft, address:e.target.value})} placeholder="Address" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+                    <input type="url" value={draft.contractUrl||""} onChange={e=>setDraft({...draft, contractUrl:e.target.value})} placeholder="Contract Google Drive URL" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" />
+                    <textarea value={draft.notes||""} onChange={e=>setDraft({...draft, notes:e.target.value})} placeholder="Notes" className="w-full px-3 py-2 rounded border border-stone-300 text-sm" rows={3}/>
+                    <div className="flex gap-2"><button onClick={saveClient} className="flex-1 py-2 bg-stone-900 text-white rounded text-sm">Save</button><button onClick={()=>{setDraft(selected); setEditing(false);}} className="px-3 py-2 bg-stone-200 rounded text-sm">Cancel</button></div>
+                  </div>
+                ) : (
+                  <div className="text-sm space-y-1">
+                    <div><span className="text-stone-500 text-xs">Contact:</span> {selected.contact || "—"}</div>
+                    <div><span className="text-stone-500 text-xs">Email:</span> {selected.email || "—"}</div>
+                    <div><span className="text-stone-500 text-xs">Address:</span> {selected.address || "—"}</div>
+                    {selected.notes && <div className="text-stone-600 italic mt-2 text-xs">{selected.notes}</div>}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center gap-2">
+                  {selected.contractUrl ? (
+                    <a href={selected.contractUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-2 bg-stone-900 text-stone-50 rounded text-sm hover:bg-stone-700">
+                      <ExternalLink className="w-4 h-4"/> View Contract (Google Drive)
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded text-xs text-amber-800">
+                      <AlertTriangle className="w-4 h-4"/> No contract on file — upload to Google Drive then paste the share link via Edit.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-xs tracking-widest text-stone-700 font-semibold">STATEMENT OF ACCOUNT</div>
+                  <button onClick={exportSOA} className="text-xs px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded flex items-center gap-1"><Download className="w-3 h-3"/>Export SOA</button>
+                </div>
+                <div style={{maxHeight:"50vh", overflowY:"auto"}}>
+                  <table className="ledger">
+                    <thead><tr><th>Date</th><th>Lot</th><th>Description</th><th style={{textAlign:"right"}}>Debit</th><th style={{textAlign:"right"}}>Credit</th><th style={{textAlign:"right"}}>Balance</th></tr></thead>
+                    <tbody>
+                      {soa?.map((e, i) => (
+                        <tr key={i} style={e.isForfeit ? {background:"#3d302722"} : {}}>
+                          <td style={{whiteSpace:"nowrap"}}>{e.date}</td>
+                          <td>#{e.lotDisplay}</td>
+                          <td>{e.label}</td>
+                          <td style={{textAlign:"right"}}>{e.debit ? peso(e.debit) : ""}</td>
+                          <td style={{textAlign:"right", color:"#1f4a2d"}}>{e.credit ? peso(e.credit) : ""}</td>
+                          <td style={{textAlign:"right", fontWeight:600, color: e.balance>0?"#a13838":"#1f4a2d"}}>{peso(e.balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ CASH POSITION VIEW ============
+function CashView({ data, save, logAudit, currentUser }) {
+  // Compute balance per account based on all payments and expenses
+  const positions = useMemo(() => {
+    const balances = {};
+    data.bankAccounts.forEach(a => { balances[a.id] = { account: a, inflows: 0, outflows: 0, undeposited: 0, transactions: [] }; });
+
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      [...(r.payments||[]), ...(r.maintenancePayments||[])].forEach(p => {
+        if (p.voided) return;
+        const amt = netPaymentAmount(p);
+        if (p.deposited && p.depositAccount) {
+          if (balances[p.depositAccount]) {
+            balances[p.depositAccount].inflows += amt;
+            balances[p.depositAccount].transactions.push({ ...p, lotId, kind: "inflow" });
+          }
+        } else {
+          if (balances.cash) {
+            balances.cash.undeposited += amt;
+            balances.cash.transactions.push({ ...p, lotId, kind: "undeposited" });
+          }
+        }
+      });
+      (r.history||[]).forEach(h => (h.payments||[]).forEach(p => {
+        if (p.voided) return;
+        const amt = netPaymentAmount(p);
+        if (p.deposited && p.depositAccount && balances[p.depositAccount]) {
+          balances[p.depositAccount].inflows += amt;
+        } else if (balances.cash) {
+          balances.cash.undeposited += amt;
+        }
+      }));
+    });
+
+    (data.expenses||[]).forEach(e => {
+      if (balances[e.fromAccount]) {
+        balances[e.fromAccount].outflows += Number(e.amount||0);
+        balances[e.fromAccount].transactions.push({ ...e, kind: "outflow" });
+      }
+    });
+
+    return data.bankAccounts.map(a => {
+      const b = balances[a.id];
+      return { ...b, net: b.inflows - b.outflows + (a.id === "cash" ? b.undeposited : 0) };
+    });
+  }, [data]);
+
+  const totalCash = positions.reduce((s,p)=>s+p.net, 0);
+  const totalUndeposited = positions.find(p=>p.account.id==="cash")?.undeposited || 0;
+
+  const undepositedTxs = useMemo(() => {
+    const txs = [];
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      const lot = lotId;
+      [...(r.payments||[]), ...(r.maintenancePayments||[])].forEach(p => {
+        if (p.voided || p.deposited) return;
+        const c = data.clients[p.clientId];
+        txs.push({ ...p, lotId, clientName: c?.name||"—" });
+      });
+    });
+    return txs.sort((a,b)=>b.date.localeCompare(a.date));
+  }, [data]);
+
+  const bulkDeposit = (accountId) => {
+    if (!confirm(`Deposit all ${undepositedTxs.length} pending payments to ${data.bankAccounts.find(a=>a.id===accountId).name}?`)) return;
+    const td = today();
+    const next = {...data, lots: {...data.lots}};
+    undepositedTxs.forEach(t => {
+      const r = next.lots[t.lotId];
+      if (!r) return;
+      next.lots[t.lotId] = {
+        ...r,
+        payments: (r.payments||[]).map(p => p.id===t.id ? {...p, deposited:true, depositDate:td, depositAccount:accountId} : p),
+        maintenancePayments: (r.maintenancePayments||[]).map(p => p.id===t.id ? {...p, deposited:true, depositDate:td, depositAccount:accountId} : p),
+      };
+    });
+    save(next);
+    logAudit("bulk-deposit", "payment", "multiple", `Bulk deposited ${undepositedTxs.length} payments to ${accountId}`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="mb-6">
+        <h2 className="display-font text-3xl text-stone-900">Cash Position</h2>
+        <div className="text-sm text-stone-600 italic">Live balance per account · daily deposit reconciliation</div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="rounded-lg p-5 panel-shadow border border-stone-300" style={{background:"linear-gradient(140deg, #1d1d1f, #2c2c2e)", color:"#f5f5f7"}}>
+          <div className="text-xs tracking-widest mb-1" style={{color:"#9dc9ff"}}>TOTAL CASH POSITION</div>
+          <div className="display-font text-3xl">{peso(totalCash)}</div>
+          <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>All accounts combined</div>
+        </div>
+        {positions.map(p => (
+          <div key={p.account.id} className="rounded-lg p-5 panel-shadow border border-stone-300 bg-white">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xs tracking-widest text-stone-500 mb-1">{p.account.name.toUpperCase()}</div>
+                <div className="display-font text-2xl text-stone-900">{peso(p.net)}</div>
+              </div>
+              {p.account.type === "cash" ? <Wallet className="w-5 h-5 text-amber-700"/> : <Building className="w-5 h-5 text-stone-500"/>}
+            </div>
+            <div className="text-[10px] text-stone-500 mt-2 flex justify-between">
+              <span>In: <span className="text-emerald-700">{peso(p.inflows)}</span></span>
+              <span>Out: <span className="text-red-700">{peso(p.outflows)}</span></span>
+            </div>
+            {p.account.id === "cash" && p.undeposited > 0 && (
+              <div className="mt-2 text-[10px] text-amber-700 italic">incl. {peso(p.undeposited)} undeposited</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-xs tracking-widest text-stone-700 font-semibold">UNDEPOSITED COLLECTIONS</div>
+            <div className="display-font text-2xl text-amber-700">{peso(totalUndeposited)}</div>
+            <div className="text-xs text-stone-500 italic">{undepositedTxs.length} pending payments — needs to be deposited to a bank account</div>
+          </div>
+          {undepositedTxs.length > 0 && can(currentUser, "bulkDeposit") && (
+            <div className="flex gap-2">
+              {data.bankAccounts.filter(a=>a.type==="bank").map(a => (
+                <button key={a.id} onClick={()=>bulkDeposit(a.id)} className="px-3 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs">
+                  Deposit all → {a.name.split(" ")[0]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{maxHeight:"50vh", overflowY:"auto"}}>
+          <table className="ledger">
+            <thead><tr><th>Date</th><th>OR #</th><th>Lot</th><th>Client</th><th>Method</th><th style={{textAlign:"right"}}>Amount</th><th>Action</th></tr></thead>
+            <tbody>
+              {undepositedTxs.map(t => (
+                <tr key={t.id}>
+                  <td>{t.date}</td>
+                  <td style={{fontFamily:"monospace",fontSize:11}}>{t.orNumber}</td>
+                  <td>{t.lotId}</td>
+                  <td>{t.clientName}</td>
+                  <td><span className="text-xs">{t.method}</span></td>
+                  <td style={{textAlign:"right", fontWeight:600}}>{peso(netPaymentAmount(t))}</td>
+                  <td>
+                    {can(currentUser, "bulkDeposit") ? (
+                      <select onChange={(e)=>{
+                        if (!e.target.value) return;
+                        const r = data.lots[t.lotId];
+                        const newR = {
+                          ...r,
+                          payments: (r.payments||[]).map(p => p.id===t.id ? {...p, deposited:true, depositDate:today(), depositAccount:e.target.value} : p),
+                          maintenancePayments: (r.maintenancePayments||[]).map(p => p.id===t.id ? {...p, deposited:true, depositDate:today(), depositAccount:e.target.value} : p),
+                        };
+                        save({...data, lots:{...data.lots, [t.lotId]:newR}});
+                        logAudit("deposit", "payment", t.id, `Deposited ${t.orNumber} to ${e.target.value}`);
+                      }} defaultValue="" className="px-2 py-1 rounded border border-stone-300 text-xs">
+                        <option value="">Deposit to…</option>
+                        {data.bankAccounts.filter(a=>a.type==="bank").map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    ) : <span className="text-[10px] text-stone-400 italic">view only</span>}
+                  </td>
+                </tr>
+              ))}
+              {undepositedTxs.length === 0 && <tr><td colSpan="7" style={{textAlign:"center", padding:"30px", color:"#5fa377", fontStyle:"italic"}}><CheckCircle2 className="w-5 h-5 inline mr-2"/>All payments deposited.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ REPORTS VIEW ============
+function ReportsView({ data, allLots }) {
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+  const [yearFilter, setYearFilter] = useState("all");
+
+  const years = useMemo(() => {
+    const s = new Set();
+    Object.values(data.lots).forEach(r => {
+      (r.payments||[]).forEach(p => p.date && s.add(p.date.slice(0,4)));
+      (r.maintenancePayments||[]).forEach(p => p.date && s.add(p.date.slice(0,4)));
+      (r.history||[]).forEach(h => (h.payments||[]).forEach(p => p.date && s.add(p.date.slice(0,4))));
+    });
+    (data.expenses||[]).forEach(e => e.date && s.add(e.date.slice(0,4)));
+    return ["all", ...[...s].sort()];
+  }, [data]);
+
+  const matchesYear = (d) => yearFilter === "all" || d?.startsWith(yearFilter);
+
+  const stats = useMemo(() => {
+    let reservations = 0, downPayments = 0, amortization = 0, spotCash = 0, discounted = 0, interment = 0, maintenance = 0, forfeited = 0;
+    let totalContract = 0, totalCollected = 0, totalOutstanding = 0;
+    let collectedByMonth = {};
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      totalContract += r.lotPrice || 0;
+      (r.payments||[]).forEach(p => {
+        if (p.voided || !matchesYear(p.date)) return;
+        const amt = netPaymentAmount(p);
+        switch (p.type) {
+          case "reservation":  reservations += amt; break;
+          case "downpayment":  downPayments += amt; break;
+          case "spotcash":     spotCash += amt; break;
+          case "discounted":   discounted += amt; break;
+          case "interment":    interment += amt; break;
+          default:             amortization += amt; // amortization, sale, or unknown
+        }
+        totalCollected += amt;
+        const month = p.date?.slice(0,7);
+        if (month) collectedByMonth[month] = (collectedByMonth[month]||0) + amt;
+      });
+      (r.maintenancePayments||[]).forEach(p => {
+        if (p.voided || !matchesYear(p.date)) return;
+        maintenance += netPaymentAmount(p);
+        const month = p.date?.slice(0,7);
+        if (month) collectedByMonth[month] = (collectedByMonth[month]||0) + netPaymentAmount(p);
+      });
+      (r.history||[]).forEach(h => {
+        (h.payments||[]).forEach(p => {
+          if (p.voided || !matchesYear(p.date)) return;
+          forfeited += netPaymentAmount(p);
+          const month = p.date?.slice(0,7);
+          if (month) collectedByMonth[month] = (collectedByMonth[month]||0) + netPaymentAmount(p);
+        });
+      });
+      const status = recomputeStatus(r);
+      if (status === "reserved" || status === "active" || status === "delinquent" || status === "defaulted") {
+        const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+        totalOutstanding += Math.max(0, (r.lotPrice||0) - paid);
+      }
+    });
+    const activeSales = reservations + downPayments + amortization + spotCash + discounted + interment;
+    const totalRevenue = activeSales + maintenance + forfeited;
+    const totalExpenses = (data.expenses||[]).filter(e => matchesYear(e.date)).reduce((s,e)=>s+Number(e.amount||0),0);
+    const netIncome = totalRevenue - totalExpenses;
+    const expensesByCategory = {};
+    (data.expenses||[]).filter(e => matchesYear(e.date)).forEach(e => { expensesByCategory[e.category] = (expensesByCategory[e.category]||0) + Number(e.amount||0); });
+
+    return { activeSales, reservations, downPayments, amortization, spotCash, discounted, interment, maintenance, forfeited, totalRevenue, totalExpenses, netIncome, totalContract, totalCollected, totalOutstanding, collectedByMonth, expensesByCategory };
+  }, [data, yearFilter]);
+
+  // Client aging
+  const aging = useMemo(() => {
+    const td = today();
+    const rows = [];
+    Object.values(data.clients).forEach(c => {
+      let totalBalance = 0, oldestDate = null;
+      Object.entries(data.lots).forEach(([lotId, r]) => {
+        if (r.currentClientId !== c.id) return;
+        const status = recomputeStatus(r);
+        if (status === "paid" || status === "cancelled") return;
+        const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+        const bal = Math.max(0, (r.lotPrice||0) - paid);
+        totalBalance += bal;
+        const last = (r.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+        const lastD = last?.date || c.since;
+        if (!oldestDate || lastD < oldestDate) oldestDate = lastD;
+      });
+      if (totalBalance > 0) {
+        const days = oldestDate ? daysBetween(oldestDate, td) : 0;
+        rows.push({ ...c, totalBalance, oldestDate, days });
+      }
+    });
+    return rows.sort((a,b)=>b.days-a.days);
+  }, [data]);
+
+  const agingBuckets = useMemo(() => {
+    const b = { current: 0, "31-60": 0, "61-90": 0, "91-180": 0, "over180": 0 };
+    aging.forEach(r => {
+      if (r.days <= 30) b.current += r.totalBalance;
+      else if (r.days <= 60) b["31-60"] += r.totalBalance;
+      else if (r.days <= 90) b["61-90"] += r.totalBalance;
+      else if (r.days <= 180) b["91-180"] += r.totalBalance;
+      else b.over180 += r.totalBalance;
+    });
+    return b;
+  }, [aging]);
+
+  // Sales by section
+  const sectionBreakdown = useMemo(() => {
+    const m = {};
+    Object.values(SECTIONS).forEach(s => { m[s.id] = { ...s, lots: 0, sold: 0, contract: 0, collected: 0 }; });
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      const lot = lotsById[lotId];
+      if (!lot) return;
+      const s = m[lot.section];
+      s.lots++;
+      s.contract += r.lotPrice||0;
+      if (r.currentClientId || (r.history||[]).length > 0) s.sold++;
+      const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+      s.collected += paid;
+    });
+    return Object.values(m);
+  }, [data, lotsById]);
+
+  const exportFullReport = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Income Statement
+    const incomeRows = [
+      { Account: "REVENUE", Amount: "" },
+      { Account: "  Reservations", Amount: stats.reservations },
+      { Account: "  Down Payments", Amount: stats.downPayments },
+      { Account: "  Monthly Amortization", Amount: stats.amortization },
+      { Account: "  Spot Cash", Amount: stats.spotCash },
+      { Account: "  Discounted", Amount: stats.discounted },
+      { Account: "  Interment Fees", Amount: stats.interment },
+      { Account: "  Maintenance Fees", Amount: stats.maintenance },
+      { Account: "  Forfeited Revenue", Amount: stats.forfeited },
+      { Account: "TOTAL REVENUE", Amount: stats.totalRevenue },
+      { Account: "", Amount: "" },
+      { Account: "EXPENSES", Amount: "" },
+      ...Object.entries(stats.expensesByCategory).map(([c,a]) => ({ Account: `  ${c}`, Amount: a })),
+      { Account: "TOTAL EXPENSES", Amount: stats.totalExpenses },
+      { Account: "", Amount: "" },
+      { Account: "NET INCOME", Amount: stats.netIncome },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomeRows), "Income Statement");
+
+    // Section Breakdown
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sectionBreakdown.map(s => ({
+      Section: s.label, "Total Lots": s.lots, "Lots Sold": s.sold, "Contract Value": s.contract,
+      "Collected": s.collected, "Outstanding": s.contract - s.collected,
+    }))), "By Section");
+
+    // Aging Report
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(aging.map(r => ({
+      "Client ID": r.id, Name: r.name, Contact: r.contact, "Days Overdue": r.days,
+      "Last Payment": r.oldestDate, "Outstanding Balance": r.totalBalance,
+    }))), "Client Aging");
+
+    // Aging Summary
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { Bucket: "Current (0-30 days)", Amount: agingBuckets.current },
+      { Bucket: "31-60 days", Amount: agingBuckets["31-60"] },
+      { Bucket: "61-90 days", Amount: agingBuckets["61-90"] },
+      { Bucket: "91-180 days", Amount: agingBuckets["91-180"] },
+      { Bucket: "Over 180 days", Amount: agingBuckets.over180 },
+    ]), "Aging Summary");
+
+    // Monthly Collections
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.entries(stats.collectedByMonth).sort().map(([m,a]) => ({ Month: m, Collected: a }))), "Monthly Collections");
+
+    XLSX.writeFile(wb, `cemetery_full_report_${today()}.xlsx`);
+  };
+
+  const maxMonthly = Math.max(1, ...Object.values(stats.collectedByMonth));
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Financial Reports</h2>
+          <div className="text-sm text-stone-600 italic">Income statement · client aging · section performance</div>
+        </div>
+        <div className="flex gap-2 items-center">
+          <select value={yearFilter} onChange={e=>setYearFilter(e.target.value)} className="px-3 py-2 rounded border border-stone-300 text-sm">
+            {years.map(y => <option key={y} value={y}>{y === "all" ? "All Years" : y}</option>)}
+          </select>
+          <button onClick={exportFullReport} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2"><Download className="w-4 h-4"/>Export Full Report</button>
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="rounded-lg p-5 panel-shadow border border-stone-300" style={{background:"linear-gradient(140deg, #1d1d1f, #2c2c2e)", color:"#f5f5f7"}}>
+          <div className="text-xs tracking-widest mb-1" style={{color:"#9dc9ff"}}>TOTAL REVENUE</div>
+          <div className="display-font text-3xl">{peso(stats.totalRevenue)}</div>
+          <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>{yearFilter === "all" ? "All time" : `Year ${yearFilter}`}</div>
+        </div>
+        <div className="rounded-lg p-5 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500 mb-1">NET INCOME</div>
+          <div className="display-font text-3xl" style={{color: stats.netIncome>=0?"#1f4a2d":"#a13838"}}>{peso(stats.netIncome)}</div>
+          <div className="text-xs mt-1 text-stone-500">Revenue minus expenses</div>
+        </div>
+        <div className="rounded-lg p-5 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500 mb-1">CONTRACT BACKLOG</div>
+          <div className="display-font text-3xl text-stone-900">{peso(stats.totalContract)}</div>
+          <div className="text-xs mt-1 text-stone-500">Total contract value (all sections)</div>
+        </div>
+        <div className="rounded-lg p-5 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500 mb-1">AR OUTSTANDING</div>
+          <div className="display-font text-3xl text-amber-700">{peso(stats.totalOutstanding)}</div>
+          <div className="text-xs mt-1 text-stone-500">Receivable from active clients</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        {/* Income Statement */}
+        <div className="col-span-12 lg:col-span-6 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">INCOME STATEMENT</div>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr><td className="py-2 font-semibold text-stone-900">REVENUE</td><td></td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Reservations</td><td className="py-1 text-right display-font">{peso(stats.reservations)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Down Payments</td><td className="py-1 text-right display-font">{peso(stats.downPayments)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Monthly Amortization</td><td className="py-1 text-right display-font">{peso(stats.amortization)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Spot Cash</td><td className="py-1 text-right display-font">{peso(stats.spotCash)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Discounted</td><td className="py-1 text-right display-font">{peso(stats.discounted)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Interment Fees</td><td className="py-1 text-right display-font">{peso(stats.interment)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Maintenance Fees</td><td className="py-1 text-right display-font">{peso(stats.maintenance)}</td></tr>
+              <tr><td className="py-1 pl-4 text-stone-700">Forfeited Revenue</td><td className="py-1 text-right display-font text-amber-700">{peso(stats.forfeited)}</td></tr>
+              <tr className="border-t border-stone-300"><td className="py-2 font-semibold text-stone-900">Total Revenue</td><td className="py-2 text-right display-font text-lg text-emerald-700">{peso(stats.totalRevenue)}</td></tr>
+              <tr><td className="py-3 font-semibold text-stone-900">EXPENSES</td><td></td></tr>
+              {Object.entries(stats.expensesByCategory).sort((a,b)=>b[1]-a[1]).map(([c,a]) => (
+                <tr key={c}><td className="py-1 pl-4 text-stone-700">{c}</td><td className="py-1 text-right display-font">{peso(a)}</td></tr>
+              ))}
+              <tr className="border-t border-stone-300"><td className="py-2 font-semibold text-stone-900">Total Expenses</td><td className="py-2 text-right display-font text-lg text-red-700">{peso(stats.totalExpenses)}</td></tr>
+              <tr className="border-t-2 border-stone-900"><td className="py-3 font-bold text-stone-900">NET INCOME</td><td className="py-3 text-right display-font text-2xl" style={{color: stats.netIncome>=0?"#1f4a2d":"#a13838"}}>{peso(stats.netIncome)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section Performance */}
+        <div className="col-span-12 lg:col-span-6 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">SECTION PERFORMANCE</div>
+          <div className="space-y-4">
+            {sectionBreakdown.map(s => {
+              const collectionRate = s.contract ? (s.collected/s.contract)*100 : 0;
+              const occupancy = s.lots ? (s.sold/s.lots)*100 : 0;
+              return (
+                <div key={s.id}>
+                  <div className="flex justify-between items-baseline mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{background:s.color}}/>
+                      <span className="font-semibold text-stone-900">{s.label}</span>
+                      <span className="text-xs text-stone-500">{s.sold}/{s.lots} sold ({occupancy.toFixed(0)}%)</span>
+                    </div>
+                    <span className="display-font text-base text-stone-900">{peso(s.collected)} / {peso(s.contract)}</span>
+                  </div>
+                  <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-full" style={{width:`${collectionRate}%`, background:s.color}}/>
+                  </div>
+                  <div className="text-[10px] text-stone-500 mt-0.5 text-right">{collectionRate.toFixed(1)}% collected</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Client Aging */}
+        <div className="col-span-12 lg:col-span-6 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="flex justify-between items-center mb-3">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold">CLIENT AGING REPORT</div>
+            <div className="text-xs text-stone-500">{aging.length} clients with balance</div>
+          </div>
+          <div className="grid grid-cols-5 gap-2 mb-3">
+            {Object.entries(agingBuckets).map(([k,v]) => {
+              const labels = {current:"0-30d", "31-60":"31-60d", "61-90":"61-90d", "91-180":"91-180d", over180:"180d+"};
+              const colors = {current:"#a8d5ba", "31-60":"#fde4a8", "61-90":"#f5c891", "91-180":"#f4a8a8", over180:"#3d3027"};
+              const text = k === "over180" ? "#e8e2d3" : "#2d2218";
+              return (
+                <div key={k} className="rounded p-2 text-center" style={{background:colors[k], color:text}}>
+                  <div className="text-[10px] font-semibold">{labels[k]}</div>
+                  <div className="display-font text-sm">{peso(v)}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{maxHeight:"36vh", overflowY:"auto"}}>
+            <table className="ledger">
+              <thead><tr><th>Client</th><th>Last Pmt</th><th style={{textAlign:"center"}}>Days</th><th style={{textAlign:"right"}}>Balance</th></tr></thead>
+              <tbody>
+                {aging.slice(0, 50).map(r => (
+                  <tr key={r.id}>
+                    <td><div className="text-sm">{r.name}</div><div className="text-[10px] text-stone-500">{r.contact}</div></td>
+                    <td style={{whiteSpace:"nowrap"}}>{r.oldestDate}</td>
+                    <td style={{textAlign:"center"}}><span className="badge" style={{background: r.days>180?"#3d3027":r.days>90?"#f4a8a8":r.days>30?"#fde4a8":"#a8d5ba", color: r.days>180?"#e8e2d3":r.days>90?"#5e1a1a":r.days>30?"#7a5a0f":"#1f4a2d"}}>{r.days}d</span></td>
+                    <td style={{textAlign:"right", fontWeight:600}}>{peso(r.totalBalance)}</td>
+                  </tr>
+                ))}
+                {aging.length === 0 && <tr><td colSpan="4" style={{textAlign:"center", padding:"30px", color:"#5fa377", fontStyle:"italic"}}>No outstanding balances.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Monthly Collections Chart */}
+        <div className="col-span-12 lg:col-span-6 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">MONTHLY COLLECTIONS</div>
+          <div style={{maxHeight:"40vh", overflowY:"auto"}}>
+            {Object.entries(stats.collectedByMonth).sort().map(([m, a]) => (
+              <div key={m} className="flex items-center gap-3 mb-2">
+                <div className="text-xs text-stone-600 w-16">{m}</div>
+                <div className="flex-1 h-5 bg-stone-100 rounded overflow-hidden relative">
+                  <div className="h-full" style={{width:`${(a/maxMonthly)*100}%`, background:"linear-gradient(90deg, #5fa377, #7dd99a)"}}/>
+                </div>
+                <div className="display-font text-sm text-stone-900 w-28 text-right">{peso(a)}</div>
+              </div>
+            ))}
+            {Object.keys(stats.collectedByMonth).length === 0 && <div className="text-xs text-stone-400 italic text-center py-8">No collection data for this period.</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ AUDIT LOG VIEW ============
+function AuditView({ data }) {
+  const [search, setSearch] = useState("");
+  const [filterUser, setFilterUser] = useState("all");
+  const [filterAction, setFilterAction] = useState("all");
+  const [filterEntity, setFilterEntity] = useState("all");
+
+  const entries = useMemo(() => {
+    return (data.auditLog||[]).slice().sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+  }, [data.auditLog]);
+
+  const actions = useMemo(() => [...new Set(entries.map(e=>e.action))].sort(), [entries]);
+  const entities = useMemo(() => [...new Set(entries.map(e=>e.entityType))].sort(), [entries]);
+
+  const filtered = useMemo(() => entries.filter(e => {
+    if (filterUser !== "all" && e.userId !== filterUser) return false;
+    if (filterAction !== "all" && e.action !== filterAction) return false;
+    if (filterEntity !== "all" && e.entityType !== filterEntity) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!e.details?.toLowerCase().includes(q) && !e.entityId?.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [entries, filterUser, filterAction, filterEntity, search]);
+
+  const userById = Object.fromEntries(data.users.map(u => [u.id, u]));
+
+  const actionColors = {
+    create: "#a8d5ba", update: "#fde4a8", delete: "#f4a8a8", void: "#d4d4d4",
+    deposit: "#cde3b8", undeposit: "#fde4a8", forfeit: "#3d3027", reassign: "#5a4a8b",
+    release: "#e8e2d3", "bulk-deposit": "#cde3b8",
+  };
+  const actionTextColors = {
+    create: "#1f4a2d", update: "#7a5a0f", delete: "#5e1a1a", void: "#525252",
+    deposit: "#2d5018", undeposit: "#7a5a0f", forfeit: "#e8e2d3", reassign: "#f5f5f7",
+    release: "#5a523f", "bulk-deposit": "#2d5018",
+  };
+
+  const exportAudit = () => {
+    const rows = filtered.map(e => ({
+      Timestamp: e.timestamp, User: userById[e.userId]?.name || e.userId, Role: userById[e.userId]?.role || "",
+      Action: e.action, Entity: e.entityType, "Entity ID": e.entityId, Details: e.details,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Audit Log");
+    XLSX.writeFile(wb, `cemetery_audit_${today()}.xlsx`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Audit Log</h2>
+          <div className="text-sm text-stone-600 italic">Every change tracked — who did what, when</div>
+        </div>
+        <button onClick={exportAudit} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2">
+          <Download className="w-4 h-4"/> Export Log
+        </button>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4 mb-4 flex flex-wrap gap-3 items-center">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+          <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search details, entity ID…" className="pl-10 pr-3 py-2 w-72 rounded border border-stone-300 text-sm" />
+        </div>
+        <select value={filterUser} onChange={e=>setFilterUser(e.target.value)} className="px-3 py-2 rounded border border-stone-300 text-sm">
+          <option value="all">All Users</option>
+          {data.users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+        <select value={filterAction} onChange={e=>setFilterAction(e.target.value)} className="px-3 py-2 rounded border border-stone-300 text-sm">
+          <option value="all">All Actions</option>
+          {actions.map(a => <option key={a}>{a}</option>)}
+        </select>
+        <select value={filterEntity} onChange={e=>setFilterEntity(e.target.value)} className="px-3 py-2 rounded border border-stone-300 text-sm">
+          <option value="all">All Entities</option>
+          {entities.map(e => <option key={e}>{e}</option>)}
+        </select>
+        <div className="ml-auto text-xs text-stone-500">{filtered.length} of {entries.length} entries</div>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <div style={{maxHeight:"70vh", overflowY:"auto"}}>
+          <table className="ledger">
+            <thead>
+              <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Entity ID</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              {filtered.map(e => {
+                const u = userById[e.userId];
+                return (
+                  <tr key={e.id}>
+                    <td style={{whiteSpace:"nowrap", fontSize:11}}>{new Date(e.timestamp).toLocaleString()}</td>
+                    <td>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm">{u?.name || e.userId}</span>
+                        {u && <span className="role-pill" style={{background:ROLES[u.role].color, fontSize:9, padding:"1px 6px"}}>{ROLES[u.role].label}</span>}
+                      </div>
+                    </td>
+                    <td><span className="badge" style={{background: actionColors[e.action]||"#e8e2d3", color: actionTextColors[e.action]||"#5a523f"}}>{e.action}</span></td>
+                    <td><span className="text-xs text-stone-600">{e.entityType}</span></td>
+                    <td style={{fontFamily:"monospace", fontSize:10}}>{e.entityId}</td>
+                    <td className="text-stone-700">{e.details}</td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan="6" style={{textAlign:"center", padding:"40px", color:"#9b8866", fontStyle:"italic"}}>No audit entries match your filters.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ ALL SECTIONS OVERVIEW (inside MapView) ============
+function AllSectionsOverview({ allLots, lotsBySection, data, setActiveSection }) {
+  const summary = useMemo(() => {
+    return Object.values(SECTIONS).map(section => {
+      const sectionLots = lotsBySection[section.id];
+      let counts = { available:0, reserved:0, active:0, delinquent:0, defaulted:0, cancelled:0, paid:0 };
+      let totalCollected = 0, totalContract = 0, outstanding = 0, activeClients = 0, forfeitedRevenue = 0;
+      sectionLots.forEach(lot => {
+        const r = data.lots[lot.id];
+        if (!r) return;
+        const st = recomputeStatus(r);
+        counts[st]++;
+        if (r.currentClientId) activeClients++;
+        const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+        totalCollected += paid;
+        totalContract += r.lotPrice || 0;
+        if (st !== "cancelled" && st !== "available" && st !== "paid") outstanding += Math.max(0, (r.lotPrice||0) - paid);
+        (r.history||[]).forEach(h => { forfeitedRevenue += h.forfeitedAmount||0; });
+      });
+      return { section, counts, totalCollected, totalContract, outstanding, activeClients, forfeitedRevenue, lotCount: sectionLots.length };
+    });
+  }, [allLots, lotsBySection, data]);
+
+  const grand = summary.reduce((acc, s) => ({
+    contract: acc.contract + s.totalContract,
+    collected: acc.collected + s.totalCollected,
+    outstanding: acc.outstanding + s.outstanding,
+    forfeited: acc.forfeited + s.forfeitedRevenue,
+    sold: acc.sold + s.activeClients,
+    lots: acc.lots + s.lotCount,
+  }), { contract:0, collected:0, outstanding:0, forfeited:0, sold:0, lots:0 });
+
+  const target = data.settings?.targetContractValue || 270000000;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg panel-shadow border border-stone-300 p-6" style={{background:"linear-gradient(140deg, #1d1d1f 0%, #2c2c2e 100%)", color:"#f5f5f7"}}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>TOTAL CONTRACT VALUE</div>
+            <div className="display-font text-3xl">{peso(grand.contract)}</div>
+            <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>
+              {((grand.contract/target)*100).toFixed(1)}% of {peso(target)} target
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>TOTAL COLLECTED</div>
+            <div className="display-font text-3xl" style={{color:"#7dd99a"}}>{peso(grand.collected)}</div>
+            <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>
+              {grand.contract ? ((grand.collected/grand.contract)*100).toFixed(1) : "0"}% collected
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>AR OUTSTANDING</div>
+            <div className="display-font text-3xl" style={{color:"#fcd34d"}}>{peso(grand.outstanding)}</div>
+            <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>Active receivable</div>
+          </div>
+          <div>
+            <div className="text-[10px] tracking-widest" style={{color:"#9dc9ff"}}>OCCUPANCY</div>
+            <div className="display-font text-3xl">{grand.sold} / {grand.lots}</div>
+            <div className="text-xs mt-1" style={{color:"#9dc9ff"}}>
+              {grand.lots ? ((grand.sold/grand.lots)*100).toFixed(1) : "0"}% sold
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {summary.map(s => {
+          const Icon = s.section.icon;
+          const collectionRate = s.totalContract ? (s.totalCollected/s.totalContract)*100 : 0;
+          return (
+            <button key={s.section.id} onClick={()=>setActiveSection(s.section.id)}
+              className="text-left bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5 hover:bg-amber-50 transition">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-md flex items-center justify-center" style={{background:s.section.color+"22"}}>
+                    <Icon className="w-5 h-5" style={{color:s.section.color}}/>
+                  </div>
+                  <div>
+                    <div className="display-font text-2xl text-stone-900">{s.section.label}</div>
+                    <div className="text-xs text-stone-500">{s.lotCount} lots · {s.activeClients} sold</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-stone-500">CONTRACT</div>
+                  <div className="display-font text-lg text-stone-900">{peso(s.totalContract)}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-5 gap-1 mb-2">
+                {Object.entries(STATUS).map(([k,v]) => (
+                  <div key={k} className="text-center px-1 py-1.5 rounded" style={{background:v.color}}>
+                    <div className="display-font text-base" style={{color:v.text}}>{s.counts[k]||0}</div>
+                    <div className="text-[9px] tracking-wider" style={{color:v.text}}>{v.label.split(" ")[0].toUpperCase()}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1 mt-3">
+                <div className="flex justify-between text-xs">
+                  <span className="text-stone-500">Collected</span>
+                  <span className="display-font text-emerald-700">{peso(s.totalCollected)}</span>
+                </div>
+                <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                  <div className="h-full" style={{width:`${collectionRate}%`, background:s.section.color}}/>
+                </div>
+                <div className="flex justify-between text-[10px] text-stone-500 mt-1">
+                  <span>{collectionRate.toFixed(1)}% collected</span>
+                  <span>{peso(s.outstanding)} outstanding</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============ HOME VIEW (Dashboard) ============
+function HomeView({ data, allLots, setTab, currentUser }) {
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+
+  const widgets = useMemo(() => {
+    const td = today();
+    const overdueClients = [];
+    let undepositedCash = 0;
+    let undepositedCount = 0;
+    let expiringReservations = [];
+    let upcomingMaintenance = [];
+
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      const lot = lotsById[lotId];
+      const status = recomputeStatus(r);
+      // Undeposited cash
+      [...(r.payments||[]), ...(r.maintenancePayments||[])].forEach(p => {
+        if (p.voided) return;
+        if (!p.deposited) { undepositedCash += netPaymentAmount(p); undepositedCount++; }
+      });
+      // Overdue
+      if (status === "delinquent" || status === "defaulted") {
+        const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+        const last = (r.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+        const lastD = last?.date || data.clients[r.currentClientId]?.since;
+        const days = lastD ? daysBetween(lastD, td) : 0;
+        const c = data.clients[r.currentClientId];
+        if (c) overdueClients.push({ ...c, lotId, lotDisplay: lot?.displayId, sectionId: lot?.section, days, balance: (r.lotPrice||0) - paid });
+      }
+      // Expiring reservations (reservation status > 60 days no payment)
+      if (status === "reserved") {
+        const last = (r.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+        if (last) {
+          const days = daysBetween(last.date, td);
+          if (days > 60 && days < 90) {
+            const c = data.clients[r.currentClientId];
+            if (c) expiringReservations.push({ ...c, lotId, lotDisplay: lot?.displayId, days });
+          }
+        }
+      }
+      // Upcoming maintenance dues - any client with currentClient and no maintenance payment this year
+      if (r.currentClientId) {
+        const year = new Date().getFullYear();
+        const paidThisYear = (r.maintenancePayments||[]).some(p => !p.voided && p.date?.startsWith(String(year)));
+        if (!paidThisYear) {
+          const c = data.clients[r.currentClientId];
+          if (c) upcomingMaintenance.push({ ...c, lotId, lotDisplay: lot?.displayId, amount: r.maintenanceFee });
+        }
+      }
+    });
+    overdueClients.sort((a,b)=>b.days-a.days);
+    return { overdueClients, undepositedCash, undepositedCount, expiringReservations, upcomingMaintenance };
+  }, [data, lotsById]);
+
+  const recentActivity = useMemo(() => (data.auditLog||[]).slice(0, 10), [data.auditLog]);
+  const userById = Object.fromEntries(data.users.map(u => [u.id, u]));
+
+  return (
+    <div className="px-8 py-6">
+      {/* Branded hero — Heaven's Gate by Double Seven Properties */}
+      <div className="relative rounded-3xl overflow-hidden panel-shadow mb-6 card-lift" style={{minHeight:220}}>
+        <img src={PARK_ASSETS.renders[5].src} alt="Heaven's Gate Memorial Park" className="absolute inset-0 w-full h-full object-cover" style={{filter:"saturate(1.05)"}}/>
+        <div className="absolute inset-0" style={{background:"linear-gradient(105deg, rgba(8,12,24,0.86) 0%, rgba(8,12,24,0.6) 45%, rgba(10,132,255,0.12) 100%)"}}/>
+        <div className="relative p-7 md:p-9 flex flex-col justify-between" style={{minHeight:220}}>
+          <div className="flex items-center gap-3">
+            <span className="brand-mark" style={{width:40,height:40,borderRadius:12,fontSize:16}}>77</span>
+            <div className="text-[11px] tracking-[0.28em] font-semibold" style={{color:"#9dc9ff"}}>DOUBLE SEVEN PROPERTIES INC.</div>
+          </div>
+          <div>
+            <h2 className="display-font text-3xl md:text-4xl text-white leading-tight">D7 Bohol Memorial Park</h2>
+            <div className="text-sm mt-1" style={{color:"rgba(255,255,255,0.75)"}}>Lawn &amp; Garden Lots · Family &amp; Court Estates · Community Vaults · Ossuary · Columbarium</div>
+            <button onClick={()=>setTab("map")} className="glow-hollow mt-4 px-4 py-2 text-sm inline-flex items-center gap-2 !text-white" style={{borderColor:"rgba(157,201,255,.6)", background:"rgba(255,255,255,.08)"}}>
+              <MapIcon className="w-4 h-4"/> View site plan &amp; 3D designs
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="display-font text-3xl text-stone-900">Today's Dashboard</h2>
+        <div className="text-sm text-stone-600 italic">Quick view of what needs attention · {new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'})}</div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {can(currentUser, "verifyPending") && (data.pendingVerifications||[]).filter(p=>p.status==="pending").length > 0 && (
+          <button onClick={()=>setTab("pending")} className="text-left rounded-lg p-5 panel-shadow border-2 border-amber-400 bg-amber-50 hover:bg-amber-100 transition">
+            <div className="flex items-start justify-between">
+              <AlertTriangle className="w-6 h-6 text-amber-700"/>
+              <span className="display-font text-3xl text-amber-700">{(data.pendingVerifications||[]).filter(p=>p.status==="pending").length}</span>
+            </div>
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">⚠ PENDING APPROVAL</div>
+            <div className="text-xs text-stone-600 mt-1">Submissions awaiting your review</div>
+          </button>
+        )}
+        {!can(currentUser, "verifyPending") && hasTab(currentUser, "pending") && (data.pendingVerifications||[]).filter(p=>p.submittedBy===currentUser.id && p.status==="pending").length > 0 && (
+          <button onClick={()=>setTab("pending")} className="text-left rounded-lg p-5 panel-shadow border border-stone-300 bg-white hover:bg-amber-50 transition">
+            <div className="flex items-start justify-between">
+              <AlertTriangle className="w-6 h-6 text-amber-700"/>
+              <span className="display-font text-3xl text-amber-700">{(data.pendingVerifications||[]).filter(p=>p.submittedBy===currentUser.id && p.status==="pending").length}</span>
+            </div>
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">MY PENDING</div>
+            <div className="text-xs text-stone-500 mt-1">Awaiting admin approval</div>
+          </button>
+        )}
+        {hasTab(currentUser, "collections") && (
+        <button onClick={()=>setTab("collections")} className="text-left rounded-lg p-5 panel-shadow border border-stone-300 bg-white hover:bg-amber-50 transition">
+          <div className="flex items-start justify-between">
+            <AlertTriangle className="w-6 h-6 text-red-700"/>
+            <span className="display-font text-3xl text-red-700">{widgets.overdueClients.length}</span>
+          </div>
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">OVERDUE CLIENTS</div>
+          <div className="text-xs text-stone-500 mt-1">Need to follow up</div>
+        </button>
+        )}
+        {hasTab(currentUser, "cash") && (
+        <button onClick={()=>setTab("cash")} className="text-left rounded-lg p-5 panel-shadow border border-stone-300 bg-white hover:bg-amber-50 transition">
+          <div className="flex items-start justify-between">
+            <Wallet className="w-6 h-6 text-amber-700"/>
+            <span className="display-font text-lg text-amber-700">{peso(widgets.undepositedCash)}</span>
+          </div>
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">UNDEPOSITED</div>
+          <div className="text-xs text-stone-500 mt-1">{widgets.undepositedCount} payments pending</div>
+        </button>
+        )}
+        {hasTab(currentUser, "clients") && (
+        <button onClick={()=>setTab("clients")} className="text-left rounded-lg p-5 panel-shadow border border-stone-300 bg-white hover:bg-amber-50 transition">
+          <div className="flex items-start justify-between">
+            <Calendar className="w-6 h-6 text-stone-700"/>
+            <span className="display-font text-3xl text-stone-700">{widgets.expiringReservations.length}</span>
+          </div>
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">EXPIRING RES.</div>
+          <div className="text-xs text-stone-500 mt-1">60-90 days dormant</div>
+        </button>
+        )}
+        {hasTab(currentUser, "clients") && (
+        <button onClick={()=>setTab("clients")} className="text-left rounded-lg p-5 panel-shadow border border-stone-300 bg-white hover:bg-amber-50 transition">
+          <div className="flex items-start justify-between">
+            <Receipt className="w-6 h-6 text-emerald-700"/>
+            <span className="display-font text-3xl text-emerald-700">{widgets.upcomingMaintenance.length}</span>
+          </div>
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mt-2">MAINT. DUE</div>
+          <div className="text-xs text-stone-500 mt-1">Annual fees unpaid this year</div>
+        </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-7 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold">URGENT: TOP OVERDUE</div>
+            <button onClick={()=>setTab("collections")} className="text-xs text-stone-600 hover:text-stone-900 underline">Go to Collections →</button>
+          </div>
+          {widgets.overdueClients.length === 0 ? (
+            <div className="text-xs text-stone-400 italic text-center py-8">✓ No overdue clients.</div>
+          ) : (
+            <table className="ledger">
+              <thead><tr><th>Client</th><th>Lot</th><th style={{textAlign:"center"}}>Days</th><th style={{textAlign:"right"}}>Balance</th></tr></thead>
+              <tbody>
+                {widgets.overdueClients.slice(0,10).map(c => (
+                  <tr key={c.lotId}>
+                    <td><div className="text-sm font-semibold">{c.name}</div><div className="text-[10px] text-stone-500">{c.contact}</div></td>
+                    <td><span className="badge" style={{background:SECTIONS[c.sectionId]?.color+"33", color:SECTIONS[c.sectionId]?.color}}>#{c.lotDisplay}</span></td>
+                    <td style={{textAlign:"center"}}><span className="badge" style={{background:"#f4a8a8", color:"#5e1a1a"}}>{c.days}d</span></td>
+                    <td style={{textAlign:"right", fontWeight:600}}>{peso(c.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="col-span-12 lg:col-span-5 bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold">RECENT ACTIVITY</div>
+            <button onClick={()=>setTab("audit")} className="text-xs text-stone-600 hover:text-stone-900 underline">Audit Log →</button>
+          </div>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {recentActivity.map(e => {
+              const u = userById[e.userId];
+              return (
+                <div key={e.id} className="flex items-start gap-2 text-xs border-b border-stone-200 pb-2">
+                  <span className="text-[10px] text-stone-500 mt-0.5 whitespace-nowrap">{new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                  <div className="flex-1">
+                    <div className="text-stone-700">{e.details}</div>
+                    <div className="text-[10px] text-stone-500">{u?.name||e.userId} · {e.action}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {recentActivity.length === 0 && <div className="text-xs text-stone-400 italic">No activity yet.</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ AGENTS VIEW ============
+function AgentsView({ data, save, logAudit, allLots }) {
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [newAgent, setNewAgent] = useState({ name: "", commissionRate: 5.0, email: "", contact: "", active: true });
+  const [showPayoutModal, setShowPayoutModal] = useState(null);
+
+  const stats = useMemo(() => {
+    return data.agents.map(agent => {
+      let salesGenerated = 0;
+      let commissionEarned = 0;
+      let commissionPaid = 0;
+      let unpaidCommission = 0;
+      let salesCount = 0;
+
+      Object.entries(data.lots).forEach(([lotId, r]) => {
+        (r.payments||[]).forEach(p => {
+          if (p.voided || p.salesAgentId !== agent.id) return;
+          const amt = netPaymentAmount(p);
+          salesGenerated += amt;
+          salesCount++;
+          const commission = amt * (agent.commissionRate/100);
+          commissionEarned += commission;
+          if (p.commissionPaid) commissionPaid += commission;
+          else unpaidCommission += commission;
+        });
+      });
+
+      const payouts = (data.commissionPayouts||[]).filter(po => po.agentId === agent.id);
+      const totalPaidOut = payouts.reduce((s,p)=>s+Number(p.amount||0), 0);
+
+      return { ...agent, salesGenerated, commissionEarned, commissionPaid, unpaidCommission, salesCount, totalPaidOut };
+    });
+  }, [data]);
+
+  const addAgent = () => {
+    if (!newAgent.name) return;
+    const id = `ag_${Date.now()}`;
+    save({...data, agents: [...data.agents, { id, ...newAgent, commissionRate: Number(newAgent.commissionRate) }]});
+    logAudit("create", "agent", id, `Added sales agent ${newAgent.name}`);
+    setNewAgent({ name: "", commissionRate: 5.0, email: "", contact: "", active: true });
+  };
+
+  const saveAgent = (id) => {
+    save({...data, agents: data.agents.map(a => a.id===id ? {...a, ...draft, commissionRate: Number(draft.commissionRate)} : a)});
+    logAudit("update", "agent", id, `Updated agent ${draft.name}`);
+    setEditingId(null);
+  };
+
+  const recordPayout = (agent, amount, note) => {
+    const payout = {
+      id: `cp_${Date.now()}`,
+      agentId: agent.id,
+      date: today(),
+      amount: Number(amount),
+      note,
+      recordedBy: data.currentUser,
+    };
+    // Mark all unpaid commissions as paid up to this amount
+    let remaining = Number(amount);
+    const next = {...data, lots: {...data.lots}};
+    Object.entries(next.lots).forEach(([lotId, r]) => {
+      const updatedPayments = (r.payments||[]).map(p => {
+        if (p.voided || p.salesAgentId !== agent.id || p.commissionPaid || remaining <= 0) return p;
+        const commission = netPaymentAmount(p) * (agent.commissionRate/100);
+        if (commission <= remaining) {
+          remaining -= commission;
+          return {...p, commissionPaid: true};
+        }
+        return p;
+      });
+      if (updatedPayments !== r.payments) next.lots[lotId] = {...r, payments: updatedPayments};
+    });
+    next.commissionPayouts = [...(data.commissionPayouts||[]), payout];
+    save(next);
+    logAudit("create", "commission_payout", payout.id, `Paid out ${peso(amount)} to ${agent.name}`);
+    setShowPayoutModal(null);
+  };
+
+  const exportAgents = () => {
+    const rows = stats.map(s => ({
+      "Agent ID": s.id, Name: s.name, Email: s.email, Contact: s.contact, "Active": s.active ? "Yes":"No",
+      "Commission Rate %": s.commissionRate, "Sales Count": s.salesCount, "Sales Generated": s.salesGenerated,
+      "Commission Earned": s.commissionEarned, "Commission Paid Out": s.totalPaidOut, "Unpaid Commission": s.unpaidCommission,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Agents");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet((data.commissionPayouts||[]).map(p => ({
+      Date: p.date, Agent: data.agents.find(a=>a.id===p.agentId)?.name||p.agentId, Amount: p.amount, Note: p.note,
+    }))), "Payout History");
+    XLSX.writeFile(wb, `cemetery_agents_${today()}.xlsx`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Sales Agents</h2>
+          <div className="text-sm text-stone-600 italic">Track commissions earned on net collections, not contract value</div>
+        </div>
+        <button onClick={exportAgents} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2">
+          <Download className="w-4 h-4"/> Export
+        </button>
+      </div>
+
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-4">
+          <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4">
+            <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">ADD AGENT</div>
+            <div className="space-y-2">
+              <input type="text" placeholder="Full name" value={newAgent.name} onChange={e=>setNewAgent({...newAgent, name:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="email" placeholder="Email" value={newAgent.email} onChange={e=>setNewAgent({...newAgent, email:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <input type="text" placeholder="Contact" value={newAgent.contact} onChange={e=>setNewAgent({...newAgent, contact:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <div><label className="text-xs text-stone-500">Commission Rate %</label>
+              <input type="number" step="0.1" placeholder="5.0" value={newAgent.commissionRate} onChange={e=>setNewAgent({...newAgent, commissionRate:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/></div>
+              <button onClick={addAgent} className="w-full py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm"><Plus className="w-4 h-4 inline"/> Add Agent</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-12 lg:col-span-8 space-y-3">
+          {stats.map(agent => (
+            <div key={agent.id} className={`bg-white/90 rounded-lg border border-stone-300 panel-shadow p-4 ${!agent.active ? "opacity-60" : ""}`}>
+              <div className="flex items-start justify-between mb-3">
+                {editingId === agent.id ? (
+                  <div className="flex-1 space-y-2">
+                    <input type="text" value={draft.name||""} onChange={e=>setDraft({...draft, name:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm display-font text-lg"/>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="email" value={draft.email||""} onChange={e=>setDraft({...draft, email:e.target.value})} placeholder="Email" className="px-3 py-2 rounded border border-stone-300 text-sm"/>
+                      <input type="text" value={draft.contact||""} onChange={e=>setDraft({...draft, contact:e.target.value})} placeholder="Contact" className="px-3 py-2 rounded border border-stone-300 text-sm"/>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <label className="text-xs text-stone-500">Rate %</label>
+                      <input type="number" step="0.1" value={draft.commissionRate||0} onChange={e=>setDraft({...draft, commissionRate:e.target.value})} className="px-3 py-2 rounded border border-stone-300 text-sm w-24"/>
+                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={draft.active!==false} onChange={e=>setDraft({...draft, active:e.target.checked})}/>Active</label>
+                      <button onClick={()=>saveAgent(agent.id)} className="ml-auto px-3 py-1.5 bg-stone-900 text-white rounded text-xs">Save</button>
+                      <button onClick={()=>setEditingId(null)} className="px-3 py-1.5 bg-stone-200 rounded text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="display-font text-2xl text-stone-900">{agent.name}</div>
+                        <span className="badge" style={{background: ROLES.agent.color, color:"white"}}>{agent.commissionRate}%</span>
+                        {!agent.active && <span className="badge" style={{background:"#d4d4d4", color:"#525252"}}>INACTIVE</span>}
+                      </div>
+                      <div className="text-xs text-stone-500">{agent.email} · {agent.contact}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      {agent.unpaidCommission > 0 && <button onClick={()=>setShowPayoutModal(agent)} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-xs">Pay Out</button>}
+                      <button onClick={()=>{setDraft(agent); setEditingId(agent.id);}} className="text-xs text-stone-600 hover:text-stone-900 underline">Edit</button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="bg-stone-100 rounded p-2">
+                  <div className="text-[9px] tracking-widest text-stone-500">SALES (NET)</div>
+                  <div className="display-font text-base text-stone-900">{peso(agent.salesGenerated)}</div>
+                  <div className="text-[10px] text-stone-500">{agent.salesCount} payments</div>
+                </div>
+                <div className="bg-stone-100 rounded p-2">
+                  <div className="text-[9px] tracking-widest text-stone-500">EARNED</div>
+                  <div className="display-font text-base text-stone-900">{peso(agent.commissionEarned)}</div>
+                </div>
+                <div className="bg-emerald-50 rounded p-2">
+                  <div className="text-[9px] tracking-widest text-emerald-700">PAID OUT</div>
+                  <div className="display-font text-base text-emerald-700">{peso(agent.totalPaidOut)}</div>
+                </div>
+                <div className="bg-amber-50 rounded p-2">
+                  <div className="text-[9px] tracking-widest text-amber-700">UNPAID</div>
+                  <div className="display-font text-base text-amber-700">{peso(agent.unpaidCommission)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showPayoutModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-stone-900/40">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 panel-shadow">
+            <div className="display-font text-2xl text-stone-900 mb-2">Pay Out Commission</div>
+            <div className="text-sm text-stone-600 mb-4">Paying {showPayoutModal.name} · Unpaid: <span className="display-font text-base text-amber-700">{peso(showPayoutModal.unpaidCommission)}</span></div>
+            <form onSubmit={(e)=>{e.preventDefault(); const fd = new FormData(e.target); recordPayout(showPayoutModal, fd.get("amount"), fd.get("note"));}}>
+              <input name="amount" type="number" placeholder="Amount" defaultValue={Math.round(showPayoutModal.unpaidCommission)} className="w-full px-3 py-2 rounded border border-stone-300 text-sm mb-2" required/>
+              <input name="note" type="text" placeholder="Note (e.g. May 2026 payout)" className="w-full px-3 py-2 rounded border border-stone-300 text-sm mb-4"/>
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm">Record Payout</button>
+                <button type="button" onClick={()=>setShowPayoutModal(null)} className="px-4 py-2 bg-stone-200 rounded text-sm">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ COLLECTIONS VIEW ============
+function CollectionsView({ data, save, logAudit, allLots, currentUser }) {
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+
+  const queue = useMemo(() => {
+    const td = today();
+    const items = [];
+    Object.entries(data.lots).forEach(([lotId, r]) => {
+      if (!r.currentClientId) return;
+      const status = recomputeStatus(r);
+      if (status !== "delinquent" && status !== "defaulted") return;
+      const lot = lotsById[lotId];
+      const c = data.clients[r.currentClientId];
+      if (!c) return;
+      const paid = (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+      const last = (r.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+      const lastDate = last?.date || c.since;
+      const days = daysBetween(lastDate, td);
+      const existing = (data.callQueue||[]).find(q => q.clientId === c.id && q.lotId === lotId);
+      items.push({
+        clientId: c.id, lotId, lot, client: c,
+        balance: (r.lotPrice||0) - paid, days, lastDate,
+        callStatus: existing?.status || "pending",
+        lastCall: existing?.lastCall || null,
+        promiseDate: existing?.promiseDate || null,
+        notes: existing?.notes || "",
+        lastEmail: existing?.lastEmail || null,
+        emailLog: existing?.emailLog || [],
+      });
+    });
+    return items.sort((a,b)=>b.days-a.days);
+  }, [data, lotsById]);
+
+  const updateCallStatus = (clientId, lotId, status, notes, promiseDate) => {
+    const existing = (data.callQueue||[]).find(q => q.clientId === clientId && q.lotId === lotId);
+    const next = existing
+      ? {...data, callQueue: data.callQueue.map(q => q.clientId===clientId && q.lotId===lotId ? {...q, status, notes, promiseDate, lastCall: nowISO(), updatedBy: currentUser.id} : q)}
+      : {...data, callQueue: [...(data.callQueue||[]), { id: uid("cq_"), clientId, lotId, status, notes, promiseDate, lastCall: nowISO(), updatedBy: currentUser.id }]};
+    save(next);
+    logAudit("update", "call_log", `${clientId}/${lotId}`, `Call status → ${CALL_STATUSES[status].label}`);
+  };
+
+  const smsTemplate = (item) => `Hi ${item.client.name}, this is a reminder from D7 Bohol Memorial Park regarding your lot #${item.lot?.displayId}. Your outstanding balance is ${peso(item.balance)} and is now ${item.days} days overdue. Please contact us at your earliest convenience to discuss payment options. Thank you.`;
+  const emailTemplate = (item) => `Dear ${item.client.name},\n\nWe hope this message finds you well. This is a friendly reminder regarding your account with D7 Bohol Memorial Park.\n\nLot #: ${item.lot?.displayId} (${SECTIONS[item.lot?.section]?.label})\nOutstanding Balance: ${peso(item.balance)}\nLast Payment: ${item.lastDate}\nDays Overdue: ${item.days}\n\nPlease arrange payment at your earliest convenience to avoid further action. If you have any concerns or wish to discuss a payment plan, please don't hesitate to contact us.\n\nWarm regards,\nD7 Bohol Memorial Park Collections Team`;
+  const monthlyTemplate = (item) => `Dear ${item.client.name},\n\nThis is your monthly payment reminder from D7 Bohol Memorial Park.\n\nLot #: ${item.lot?.displayId} (${SECTIONS[item.lot?.section]?.label})\nOutstanding Balance: ${peso(item.balance)}\nLast Payment: ${item.lastDate}\n\nKindly settle your amortization for this month to keep your account in good standing. You may pay via bank transfer, GCash, or at our office. Please disregard this notice if payment has already been made.\n\nThank you,\nD7 Bohol Memorial Park Collections Team`;
+
+  // Email templates keyed by the button the user chooses.
+  const EMAIL_KINDS = {
+    overdue: { label: "Overdue", subject: (it)=>`Overdue Payment Reminder — Lot #${it.lot?.displayId}`, body: emailTemplate, color: "#3b6fb0" },
+    monthly: { label: "Monthly", subject: (it)=>`Monthly Payment Reminder — Lot #${it.lot?.displayId}`, body: monthlyTemplate, color: "#5a4a8b" },
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text).then(() => alert(`${label} copied to clipboard.`)).catch(()=>{});
+  };
+
+  // One-click follow-up: opens the mail client with the chosen template prefilled,
+  // then stamps WHO sent it and WHEN so we can see who is actually working the queue.
+  // (On Vercel/Supabase this same handler can POST to an email API like Resend instead of mailto.)
+  const sendEmail = (item, kind) => {
+    const K = EMAIL_KINDS[kind];
+    const to = item.client.email || "";
+    const subject = K.subject(item);
+    const body = K.body(item);
+    // Opens the mail client with everything pre-written (recipient blank if none on file).
+    window.open(`mailto:${to?encodeURIComponent(to):""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
+    const entry = { kind, subject, to, sentBy: currentUser.id, sentByName: currentUser.name, sentAt: nowISO() };
+    const existing = (data.callQueue||[]).find(q => q.clientId===item.clientId && q.lotId===item.lotId);
+    const next = existing
+      ? {...data, callQueue: data.callQueue.map(q => q.clientId===item.clientId && q.lotId===item.lotId ? {...q, emailLog:[...(q.emailLog||[]), entry], lastEmail: entry} : q)}
+      : {...data, callQueue: [...(data.callQueue||[]), { id: uid("cq_"), clientId:item.clientId, lotId:item.lotId, status:item.callStatus, notes:item.notes, promiseDate:item.promiseDate, lastCall:null, emailLog:[entry], lastEmail: entry }]};
+    save(next);
+    logAudit("email", "collection", `${item.clientId}/${item.lotId}`, `Sent ${K.label} reminder to ${item.client.name}${to?` <${to}>`:" (no email on file)"}`);
+  };
+
+  const stats = useMemo(() => {
+    const s = { pending:0, called:0, message:0, promised:0, no_answer:0, resolved:0 };
+    queue.forEach(q => s[q.callStatus] = (s[q.callStatus]||0)+1);
+    return s;
+  }, [queue]);
+
+  return (
+    <div className="px-8 py-6">
+      <div className="mb-4">
+        <h2 className="display-font text-3xl text-stone-900">Collections Workflow</h2>
+        <div className="text-sm text-stone-600 italic">Today's follow-up queue · {queue.length} overdue accounts</div>
+      </div>
+
+      <div className="grid grid-cols-6 gap-2 mb-4">
+        {Object.entries(CALL_STATUSES).map(([k,v]) => (
+          <div key={k} className="rounded p-2 text-center" style={{background:v.color, color:v.textColor}}>
+            <div className="display-font text-xl">{stats[k]||0}</div>
+            <div className="text-[10px] tracking-widest">{v.label.toUpperCase()}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <div style={{maxHeight:"75vh", overflowY:"auto"}}>
+          <table className="ledger">
+            <thead>
+              <tr><th>Client</th><th>Lot</th><th style={{textAlign:"center"}}>Days</th><th style={{textAlign:"right"}}>Balance</th><th>Status</th><th>Notes / Promised Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {queue.map(item => (
+                <tr key={`${item.clientId}_${item.lotId}`}>
+                  <td>
+                    <div className="text-sm font-semibold">{item.client.name}</div>
+                    <div className="text-[10px] text-stone-500">{item.client.contact}</div>
+                    <div className="text-[10px] text-stone-400">{item.client.email}</div>
+                  </td>
+                  <td><span className="badge" style={{background:SECTIONS[item.lot?.section]?.color+"33", color:SECTIONS[item.lot?.section]?.color}}>#{item.lot?.displayId} {SECTIONS[item.lot?.section]?.label.split(" ")[0]}</span></td>
+                  <td style={{textAlign:"center"}}><span className="badge" style={{background:item.days>180?"#3d3027":"#f4a8a8", color:item.days>180?"#e8e2d3":"#5e1a1a"}}>{item.days}d</span></td>
+                  <td style={{textAlign:"right", fontWeight:600}}>{peso(item.balance)}</td>
+                  <td>
+                    <select value={item.callStatus} onChange={e=>updateCallStatus(item.clientId, item.lotId, e.target.value, item.notes, item.promiseDate)} className="px-2 py-1 rounded text-xs border border-stone-300" style={{background:CALL_STATUSES[item.callStatus].color, color:CALL_STATUSES[item.callStatus].textColor}}>
+                      {Object.entries(CALL_STATUSES).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    {item.lastCall && <div className="text-[9px] text-stone-500 mt-1">Last: {new Date(item.lastCall).toLocaleString()}</div>}
+                  </td>
+                  <td>
+                    <input type="text" placeholder="Notes…" defaultValue={item.notes} onBlur={e=>e.target.value!==item.notes && updateCallStatus(item.clientId, item.lotId, item.callStatus, e.target.value, item.promiseDate)} className="w-full px-2 py-1 rounded border border-stone-300 text-xs"/>
+                    {item.callStatus === "promised" && <input type="date" defaultValue={item.promiseDate||""} onBlur={e=>e.target.value!==item.promiseDate && updateCallStatus(item.clientId, item.lotId, item.callStatus, item.notes, e.target.value)} className="w-full mt-1 px-2 py-1 rounded border border-stone-300 text-xs"/>}
+                  </td>
+                  <td>
+                    <div className="flex flex-col gap-1" style={{minWidth:150}}>
+                      <div className="flex gap-1">
+                        <a href={`tel:${item.client.contact}`} className="px-2 py-1 bg-emerald-700 text-white rounded text-[10px]">Call</a>
+                        <button onClick={()=>copyToClipboard(smsTemplate(item), "SMS template")} className="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded text-[10px]" title="Copy SMS template">SMS</button>
+                      </div>
+                      <div className="flex gap-1">
+                        {Object.entries(EMAIL_KINDS).map(([k,K]) => (
+                          <button key={k} onClick={()=>sendEmail(item, k)}
+                            title={item.client.email ? `Email ${K.label.toLowerCase()} reminder to ${item.client.email}` : "No email on file — opens your mail app to add a recipient"}
+                            className="px-2 py-1 rounded text-[10px] text-white flex items-center gap-1"
+                            style={{background:K.color, opacity: item.client.email ? 1 : 0.7}}>✉ {K.label}{!item.client.email && <span title="No email on file">⚠</span>}</button>
+                        ))}
+                      </div>
+                      {item.lastEmail && <div className="text-[9px] text-stone-500 leading-tight">✓ {EMAIL_KINDS[item.lastEmail.kind]?.label||item.lastEmail.kind} sent by <span className="font-semibold text-stone-700">{item.lastEmail.sentByName||item.lastEmail.sentBy}</span> · {new Date(item.lastEmail.sentAt).toLocaleDateString()} {item.emailLog.length>1 && `(${item.emailLog.length}×)`}</div>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {queue.length === 0 && <tr><td colSpan="7" style={{textAlign:"center", padding:"40px", color:"#5fa377", fontStyle:"italic"}}>✓ No overdue accounts to follow up.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="text-xs text-stone-500 mt-3 italic">✉ Overdue / Monthly open your mail app with the reminder pre-written, and log who sent it &amp; when (shown under Actions and in Audit). SMS copies a template to paste into your messaging app.</div>
+    </div>
+  );
+}
+
+// ============ TRANSFERS VIEW ============
+function TransfersView({ data, save, logAudit, allLots, currentUser }) {
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ lotId: "", newClientName: "", newClientContact: "", newClientEmail: "", reason: "inheritance", paperworkUrl: "", notes: "" });
+
+  const transferableLots = useMemo(() => {
+    return Object.entries(data.lots).filter(([id, r]) => r.currentClientId).map(([id, r]) => ({
+      id, lot: lotsById[id], client: data.clients[r.currentClientId], record: r,
+    }));
+  }, [data, lotsById]);
+
+  const executeTransfer = () => {
+    if (!form.lotId || !form.newClientName) return alert("Lot and new client name are required.");
+    const r = data.lots[form.lotId];
+    const lot = lotsById[form.lotId];
+    const oldClient = data.clients[r.currentClientId];
+    const newClientId = `C${Date.now().toString().slice(-6)}`;
+    const newClient = {
+      id: newClientId, name: form.newClientName, contact: form.newClientContact, email: form.newClientEmail,
+      address: "", contractUrl: "", since: today(), notes: `Transferred from ${oldClient?.name} (${form.reason})`,
+      createdBy: currentUser.id,
+    };
+    const transferRecord = {
+      id: uid("tr_"), date: today(), lotId: form.lotId,
+      fromClientId: r.currentClientId, fromClientName: oldClient?.name,
+      toClientId: newClientId, toClientName: form.newClientName,
+      reason: form.reason, paperworkUrl: form.paperworkUrl, notes: form.notes,
+      previousPayments: r.payments || [],
+      transferredBy: currentUser.id,
+    };
+    // Move payment history into history entries under prior client, fresh slate for new client
+    const newHistory = [...(r.history||[]), {
+      clientId: r.currentClientId, transferredDate: today(),
+      transferredTo: newClientId, payments: r.payments || [],
+      transferredAmount: (r.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0),
+      reason: `Transferred — ${form.reason}`,
+      paperworkUrl: form.paperworkUrl,
+    }];
+    save({
+      ...data,
+      clients: {...data.clients, [newClientId]: newClient},
+      lots: {...data.lots, [form.lotId]: {...r, currentClientId: newClientId, payments: [], history: newHistory}},
+      transfers: [...(data.transfers||[]), transferRecord],
+    });
+    logAudit("transfer", "lot", form.lotId, `Transferred lot #${lot?.displayId} from ${oldClient?.name} to ${form.newClientName} (${form.reason})`);
+    setShowForm(false);
+    setForm({ lotId: "", newClientName: "", newClientContact: "", newClientEmail: "", reason: "inheritance", paperworkUrl: "", notes: "" });
+  };
+
+  const exportTransfers = () => {
+    const rows = (data.transfers||[]).map(t => ({
+      Date: t.date, "Lot #": lotsById[t.lotId]?.displayId, From: t.fromClientName, To: t.toClientName,
+      Reason: t.reason, "Paperwork URL": t.paperworkUrl, Notes: t.notes,
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Transfers");
+    XLSX.writeFile(wb, `cemetery_transfers_${today()}.xlsx`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Lot Transfers</h2>
+          <div className="text-sm text-stone-600 italic">Inheritance, sale to new owner, or other ownership change</div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={()=>setShowForm(true)} className="px-4 py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm flex items-center gap-2"><ArrowUpRight className="w-4 h-4"/>New Transfer</button>
+          <button onClick={exportTransfers} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-sm flex items-center gap-2"><Download className="w-4 h-4"/>Export</button>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <table className="ledger">
+          <thead><tr><th>Date</th><th>Lot</th><th>From</th><th>To</th><th>Reason</th><th>Paperwork</th><th>Notes</th></tr></thead>
+          <tbody>
+            {(data.transfers||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(t => (
+              <tr key={t.id}>
+                <td style={{whiteSpace:"nowrap"}}>{t.date}</td>
+                <td><span className="badge" style={{background:SECTIONS[lotsById[t.lotId]?.section]?.color+"33", color:SECTIONS[lotsById[t.lotId]?.section]?.color}}>#{lotsById[t.lotId]?.displayId}</span></td>
+                <td>{t.fromClientName}</td>
+                <td><span className="text-emerald-700 font-semibold">{t.toClientName}</span></td>
+                <td><span className="badge" style={{background:"#e3d8b8", color:"#5a4a2a"}}>{t.reason}</span></td>
+                <td>{t.paperworkUrl ? <a href={t.paperworkUrl} target="_blank" rel="noopener noreferrer" className="text-stone-700 underline text-xs inline-flex items-center gap-1"><ExternalLink className="w-3 h-3"/>View</a> : <span className="text-stone-400 text-xs italic">none</span>}</td>
+                <td className="text-xs">{t.notes}</td>
+              </tr>
+            ))}
+            {(data.transfers||[]).length === 0 && <tr><td colSpan="7" style={{textAlign:"center", padding:"40px", color:"#9b8866", fontStyle:"italic"}}>No transfers yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-stone-900/40 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full panel-shadow max-h-[90vh] overflow-y-auto">
+            <div className="display-font text-2xl text-stone-900 mb-4">New Lot Transfer</div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-stone-500">Lot to transfer</label>
+                <select value={form.lotId} onChange={e=>setForm({...form, lotId:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+                  <option value="">Select lot…</option>
+                  {transferableLots.map(t => <option key={t.id} value={t.id}>#{t.lot?.displayId} ({SECTIONS[t.lot?.section]?.label}) — {t.client?.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-stone-500">Reason</label>
+                <select value={form.reason} onChange={e=>setForm({...form, reason:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+                  <option value="inheritance">Inheritance</option>
+                  <option value="sale">Sale to new owner</option>
+                  <option value="gift">Gift / donation</option>
+                  <option value="correction">Records correction</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="text-xs tracking-widest text-stone-700 font-semibold border-t border-stone-200 pt-3">NEW OWNER</div>
+              <input type="text" placeholder="Full name" value={form.newClientName} onChange={e=>setForm({...form, newClientName:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" placeholder="Contact" value={form.newClientContact} onChange={e=>setForm({...form, newClientContact:e.target.value})} className="px-3 py-2 rounded border border-stone-300 text-sm"/>
+                <input type="email" placeholder="Email" value={form.newClientEmail} onChange={e=>setForm({...form, newClientEmail:e.target.value})} className="px-3 py-2 rounded border border-stone-300 text-sm"/>
+              </div>
+              <div>
+                <label className="text-xs text-stone-500">Paperwork URL (Google Drive — deed of donation, will, etc.)</label>
+                <input type="url" value={form.paperworkUrl} onChange={e=>setForm({...form, paperworkUrl:e.target.value})} placeholder="https://drive.google.com/…" className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              </div>
+              <div>
+                <label className="text-xs text-stone-500">Notes</label>
+                <textarea value={form.notes} onChange={e=>setForm({...form, notes:e.target.value})} rows={2} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+              </div>
+              <div className="text-xs text-amber-700 italic bg-amber-50 p-2 rounded border border-amber-200">
+                ⚠ This will move all existing payments to history under the previous owner. The new owner starts with a fresh payment record on the same lot at the same contract price.
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={executeTransfer} className="flex-1 py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm">Execute Transfer</button>
+                <button onClick={()=>setShowForm(false)} className="px-4 py-2 bg-stone-200 rounded text-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ TRASH VIEW ============
+function TrashView({ data, save, logAudit }) {
+  const trash = data.trash || [];
+  const RETENTION_DAYS = 30;
+
+  const restore = (item) => {
+    if (!confirm(`Restore "${item.label}"?`)) return;
+    const next = {...data, trash: trash.filter(t => t.id !== item.id)};
+    // Restore based on entity type
+    if (item.entityType === "expense") {
+      next.expenses = [...(data.expenses||[]), item.entity];
+    } else if (item.entityType === "client") {
+      next.clients = {...data.clients, [item.entity.id]: item.entity};
+    } else if (item.entityType === "agent") {
+      next.agents = [...data.agents, item.entity];
+    }
+    save(next);
+    logAudit("restore", item.entityType, item.entity?.id || item.id, `Restored ${item.label} from trash`);
+  };
+
+  const purge = (item) => {
+    if (!confirm(`Permanently delete "${item.label}"? This cannot be undone.`)) return;
+    save({...data, trash: trash.filter(t => t.id !== item.id)});
+    logAudit("purge", item.entityType, item.entity?.id || item.id, `Purged ${item.label} from trash`);
+  };
+
+  const purgeAll = () => {
+    if (!confirm(`Permanently delete all ${trash.length} items in trash? This cannot be undone.`)) return;
+    save({...data, trash: []});
+    logAudit("purge_all", "trash", "all", `Purged ${trash.length} items from trash`);
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="display-font text-3xl text-stone-900">Trash</h2>
+          <div className="text-sm text-stone-600 italic">Items deleted within {RETENTION_DAYS} days can be restored · {trash.length} items</div>
+        </div>
+        {trash.length > 0 && <button onClick={purgeAll} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm">Empty Trash</button>}
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <table className="ledger">
+          <thead><tr><th>Deleted At</th><th>Type</th><th>Description</th><th>Deleted By</th><th>Days Ago</th><th>Actions</th></tr></thead>
+          <tbody>
+            {trash.slice().sort((a,b)=>b.deletedAt.localeCompare(a.deletedAt)).map(item => {
+              const days = daysBetween(item.deletedAt.slice(0,10), today());
+              const expired = days > RETENTION_DAYS;
+              return (
+                <tr key={item.id}>
+                  <td style={{whiteSpace:"nowrap"}}>{new Date(item.deletedAt).toLocaleString()}</td>
+                  <td><span className="badge" style={{background:"#e3d8b8", color:"#5a4a2a"}}>{item.entityType}</span></td>
+                  <td>{item.label}</td>
+                  <td className="text-xs">{data.users.find(u=>u.id===item.deletedBy)?.name||item.deletedBy}</td>
+                  <td><span className="badge" style={{background: expired?"#f4a8a8":"#cde3b8", color: expired?"#5e1a1a":"#2d5018"}}>{days}d</span></td>
+                  <td>
+                    <div className="flex gap-1">
+                      {!expired && <button onClick={()=>restore(item)} className="px-2 py-1 bg-emerald-700 text-white rounded text-xs"><RotateCcw className="w-3 h-3 inline mr-1"/>Restore</button>}
+                      <button onClick={()=>purge(item)} className="px-2 py-1 bg-red-700 text-white rounded text-xs"><Trash2 className="w-3 h-3 inline mr-1"/>Purge</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {trash.length === 0 && <tr><td colSpan="6" style={{textAlign:"center", padding:"40px", color:"#9b8866", fontStyle:"italic"}}>Trash is empty.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============ SETTINGS VIEW (locked months, currency, CSV import) ============
+function SettingsView({ data, save, logAudit, currentUser }) {
+  const [importType, setImportType] = useState("clients");
+  const [importResult, setImportResult] = useState(null);
+  const lockedMonths = data.lockedMonths || [];
+
+  const allMonths = useMemo(() => {
+    const s = new Set();
+    Object.values(data.lots).forEach(r => {
+      (r.payments||[]).forEach(p => p.date && s.add(monthKey(p.date)));
+    });
+    (data.expenses||[]).forEach(e => e.date && s.add(monthKey(e.date)));
+    return [...s].sort().reverse();
+  }, [data]);
+
+  const toggleLock = (m) => {
+    if (currentUser.role !== "admin") return alert("Only admins can lock/unlock periods.");
+    const next = lockedMonths.includes(m) ? lockedMonths.filter(x => x !== m) : [...lockedMonths, m];
+    save({...data, lockedMonths: next});
+    logAudit(lockedMonths.includes(m)?"unlock":"lock", "period", m, `${lockedMonths.includes(m)?"Unlocked":"Locked"} ${m}`);
+  };
+
+  const updateTarget = (val) => {
+    save({...data, settings: {...data.settings, targetContractValue: Number(val)}});
+    logAudit("update", "settings", "targetContractValue", `Set target to ${peso(val)}`);
+  };
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const rows = lines.slice(1).map(l => {
+        const vals = l.split(",").map(v => v.trim());
+        return headers.reduce((obj, h, i) => ({...obj, [h]: vals[i]}), {});
+      });
+
+      if (importType === "clients") {
+        const newClients = {};
+        rows.forEach(r => {
+          const id = `C${Date.now().toString().slice(-6)}_${Math.random().toString(36).slice(2,5)}`;
+          newClients[id] = {
+            id, name: r.name || r["client name"] || "",
+            contact: r.contact || r.phone || "", email: r.email || "",
+            address: r.address || "", contractUrl: r["contract url"] || r["contracturl"] || "",
+            since: r.since || today(), notes: r.notes || "",
+            createdBy: currentUser.id,
+          };
+        });
+        save({...data, clients: {...data.clients, ...newClients}});
+        logAudit("import", "clients", "bulk", `Imported ${Object.keys(newClients).length} clients`);
+        setImportResult({ ok: true, count: Object.keys(newClients).length });
+      } else if (importType === "expenses") {
+        const newExpenses = rows.map(r => ({
+          id: uid("e_"), date: r.date || today(), category: r.category || "Other",
+          description: r.description || "", vendor: r.vendor || "",
+          paymentMethod: r["payment method"] || r.method || "Cash",
+          fromAccount: r["from account"] || r.account || "cash",
+          amount: Number(r.amount || 0), recordedBy: currentUser.id,
+        }));
+        save({...data, expenses: [...(data.expenses||[]), ...newExpenses]});
+        logAudit("import", "expenses", "bulk", `Imported ${newExpenses.length} expenses`);
+        setImportResult({ ok: true, count: newExpenses.length });
+      }
+    } catch (err) {
+      setImportResult({ ok: false, error: err.message });
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <div className="px-8 py-6">
+      <div className="mb-4">
+        <h2 className="display-font text-3xl text-stone-900">Settings</h2>
+        <div className="text-sm text-stone-600 italic">System configuration · period locking · bulk import</div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">CONTRACT VALUE TARGET</div>
+          <div className="text-xs text-stone-500 mb-2">Total target across all lots — used in dashboard progress indicators.</div>
+          <input type="number" defaultValue={data.settings?.targetContractValue || 270000000} onBlur={(e)=>updateTarget(e.target.value)} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+          <div className="text-xs text-stone-500 mt-1">Current: {peso(data.settings?.targetContractValue || 270000000)}</div>
+        </div>
+
+        <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">BULK CSV IMPORT</div>
+          <div className="text-xs text-stone-500 mb-3">Import existing records from CSV. Headers must match the entity type.</div>
+          <select value={importType} onChange={e=>{setImportType(e.target.value); setImportResult(null);}} className="w-full px-3 py-2 rounded border border-stone-300 text-sm mb-2">
+            <option value="clients">Clients (headers: name, contact, email, address, since, notes)</option>
+            <option value="expenses">Expenses (headers: date, category, description, vendor, method, account, amount)</option>
+          </select>
+          <input type="file" accept=".csv" onChange={handleCSVImport} className="w-full text-sm text-stone-700"/>
+          {importResult && (
+            <div className={`mt-2 p-2 rounded text-xs ${importResult.ok?"bg-emerald-50 text-emerald-800":"bg-red-50 text-red-800"}`}>
+              {importResult.ok ? `✓ Imported ${importResult.count} records.` : `✗ Error: ${importResult.error}`}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5 lg:col-span-2">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">MONTH-END CLOSING (PERIOD LOCKS)</div>
+          <div className="text-xs text-stone-500 mb-3">Locking a month prevents new entries from being recorded with dates in that month. Useful for closing the books on past periods. Only admins can lock/unlock.</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-80 overflow-y-auto">
+            {allMonths.map(m => {
+              const locked = lockedMonths.includes(m);
+              return (
+                <button key={m} onClick={()=>toggleLock(m)}
+                  className={`px-3 py-2 rounded text-sm transition flex items-center justify-between ${locked?"bg-red-100 text-red-700 hover:bg-red-200":"bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}>
+                  <span>{m}</span>
+                  {locked ? <Ban className="w-4 h-4"/> : <CheckCircle2 className="w-4 h-4"/>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-stone-500 mt-2 italic">Green = open · Red = locked. Click to toggle.</div>
+        </div>
+
+        <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow p-5 lg:col-span-2">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold mb-3">DANGER ZONE</div>
+          <div className="space-y-2">
+            <button onClick={()=>{
+              if (!confirm("Reset all data and re-seed? This cannot be undone.")) return;
+              window.storage.delete("cemetery_v6", true).then(()=>window.location.reload());
+            }} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm">Reset all data (re-seed)</button>
+            <div className="text-xs text-stone-500 italic">Wipes all records and reloads with fresh seed data.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ PAYMENT PLAN TAB ============
+function PaymentPlanTab({ record, onSave, logAudit, lotDisplayId }) {
+  const plan = record.paymentPlan;
+  const [draft, setDraft] = useState(plan || {
+    type: "monthly", startDate: today(), termMonths: 12, downPayment: 0, installmentAmount: 0,
+  });
+  const [showForm, setShowForm] = useState(!plan);
+
+  const paidTotal = (record.payments||[]).reduce((s,p)=>s+netPaymentAmount(p),0);
+  const balance = (record.lotPrice||0) - paidTotal;
+
+  const schedule = useMemo(() => {
+    if (!plan) return [];
+    const items = [];
+    const start = new Date(plan.startDate);
+    const principal = (record.lotPrice||0) - Number(plan.downPayment||0);
+    const monthlyAmount = plan.installmentAmount || (principal / plan.termMonths);
+    if (Number(plan.downPayment||0) > 0) {
+      items.push({ date: plan.startDate, label: "Down Payment", due: Number(plan.downPayment), idx: 0 });
+    }
+    const monthsPerInstallment = plan.type === "monthly" ? 1 : plan.type === "quarterly" ? 3 : 12;
+    const installments = Math.ceil(plan.termMonths / monthsPerInstallment);
+    for (let i=1; i<=installments; i++) {
+      const d = new Date(start);
+      d.setMonth(d.getMonth() + i * monthsPerInstallment);
+      items.push({ date: d.toISOString().slice(0,10), label: `Installment ${i}`, due: monthlyAmount, idx: i });
+    }
+    // Match payments to scheduled items by chronological order
+    const sortedPayments = (record.payments||[]).filter(p=>!p.voided).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    let pIdx = 0;
+    items.forEach(item => {
+      item.paid = 0;
+      item.payments = [];
+      while (pIdx < sortedPayments.length && item.paid < item.due) {
+        const p = sortedPayments[pIdx];
+        const net = netPaymentAmount(p);
+        const remaining = item.due - item.paid;
+        if (net <= remaining + 1) {
+          item.paid += net;
+          item.payments.push(p);
+          pIdx++;
+        } else {
+          item.paid += remaining;
+          break;
+        }
+      }
+      const today_ = today();
+      item.status = item.paid >= item.due - 1 ? "paid" : item.date < today_ ? "overdue" : "upcoming";
+    });
+    return items;
+  }, [plan, record]);
+
+  const savePlan = () => {
+    onSave({...record, paymentPlan: {...draft, downPayment: Number(draft.downPayment||0), termMonths: Number(draft.termMonths||12), installmentAmount: Number(draft.installmentAmount||0)}});
+    logAudit("create", "payment_plan", `plan_${lotDisplayId}`, `Set up ${draft.type} plan for lot #${lotDisplayId}`);
+    setShowForm(false);
+  };
+  const clearPlan = () => {
+    if (!confirm("Remove the payment plan? Payment history is kept.")) return;
+    onSave({...record, paymentPlan: null});
+    logAudit("delete", "payment_plan", `plan_${lotDisplayId}`, `Removed payment plan for lot #${lotDisplayId}`);
+    setShowForm(true);
+  };
+
+  return (
+    <div className="space-y-3">
+      {showForm || !plan ? (
+        <div className="bg-white/70 rounded-lg border border-stone-200 p-4">
+          <div className="text-[10px] tracking-widest text-stone-500 font-semibold mb-3">SET UP PAYMENT PLAN</div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div><label className="text-xs text-stone-500">Frequency</label>
+              <select value={draft.type} onChange={e=>setDraft({...draft, type:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 text-xs">
+                <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option>
+              </select>
+            </div>
+            <div><label className="text-xs text-stone-500">Term (months)</label>
+              <input type="number" value={draft.termMonths} onChange={e=>setDraft({...draft, termMonths:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 text-xs"/>
+            </div>
+            <div><label className="text-xs text-stone-500">Start Date</label>
+              <input type="date" value={draft.startDate} onChange={e=>setDraft({...draft, startDate:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 text-xs"/>
+            </div>
+            <div><label className="text-xs text-stone-500">Down Payment ₱</label>
+              <input type="number" value={draft.downPayment} onChange={e=>setDraft({...draft, downPayment:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 text-xs"/>
+            </div>
+            <div className="col-span-2"><label className="text-xs text-stone-500">Installment ₱ (leave 0 to auto-divide)</label>
+              <input type="number" value={draft.installmentAmount} onChange={e=>setDraft({...draft, installmentAmount:e.target.value})} className="w-full px-2 py-2 rounded border border-stone-300 text-xs"/>
+            </div>
+          </div>
+          <button onClick={savePlan} className="w-full py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm">Save Plan</button>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white/70 rounded-lg border border-stone-200 p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-[10px] tracking-widest text-stone-500">CURRENT PLAN</div>
+                <div className="display-font text-xl text-stone-900">{plan.type.charAt(0).toUpperCase()+plan.type.slice(1)} · {plan.termMonths} months</div>
+                <div className="text-xs text-stone-500">Started {plan.startDate} · Down: {peso(plan.downPayment)}</div>
+              </div>
+              <button onClick={()=>{setDraft(plan); setShowForm(true);}} className="text-xs text-stone-600 hover:text-stone-900 underline">Edit</button>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              <div className="bg-stone-100 rounded p-2"><div className="text-[10px] text-stone-500">PAID</div><div className="display-font text-base text-emerald-700">{peso(paidTotal)}</div></div>
+              <div className="bg-stone-100 rounded p-2"><div className="text-[10px] text-stone-500">BALANCE</div><div className="display-font text-base text-amber-700">{peso(balance)}</div></div>
+              <div className="bg-stone-100 rounded p-2"><div className="text-[10px] text-stone-500">CONTRACT</div><div className="display-font text-base text-stone-900">{peso(record.lotPrice)}</div></div>
+            </div>
+          </div>
+          <div className="text-[10px] tracking-widest text-stone-500 font-semibold px-1">AMORTIZATION SCHEDULE</div>
+          <div className="space-y-1.5 max-h-80 overflow-y-auto">
+            {schedule.map((item, i) => {
+              const sCfg = { paid:{bg:"#a8d5ba", txt:"#1f4a2d", label:"PAID"}, overdue:{bg:"#f4a8a8", txt:"#5e1a1a", label:"OVERDUE"}, upcoming:{bg:"#fde4a8", txt:"#7a5a0f", label:"UPCOMING"} }[item.status];
+              return (
+                <div key={i} className="bg-white/70 rounded border border-stone-200 px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-stone-700">{item.label}</div>
+                    <div className="text-[10px] text-stone-500">Due {item.date}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="display-font text-sm text-stone-900">{peso(item.paid)} / {peso(item.due)}</div>
+                    <div className="badge" style={{background:sCfg.bg, color:sCfg.txt}}>{sCfg.label}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {schedule.length === 0 && <div className="text-xs text-stone-400 italic text-center py-4">No installments scheduled.</div>}
+          </div>
+          <button onClick={clearPlan} className="w-full mt-2 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded text-xs">Remove plan</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============ DOCUMENTS TAB ============
+function DocumentsTab({ record, onSave, logAudit, lotDisplayId }) {
+  const docs = record.documents || [];
+  const [newDoc, setNewDoc] = useState({ label: "", url: "", type: "Death Certificate" });
+
+  const addDoc = () => {
+    if (!newDoc.label || !newDoc.url) return;
+    const d = { id: uid("d_"), ...newDoc, uploadedAt: nowISO() };
+    onSave({...record, documents: [...docs, d]});
+    logAudit("create", "document", d.id, `Added "${d.label}" to lot #${lotDisplayId}`);
+    setNewDoc({ label: "", url: "", type: "Death Certificate" });
+  };
+  const removeDoc = (id) => {
+    if (!confirm("Remove this document reference?")) return;
+    onSave({...record, documents: docs.filter(d=>d.id!==id)});
+    logAudit("delete", "document", id, "Document removed");
+  };
+
+  const docTypes = ["Death Certificate", "Government ID", "Deed of Sale", "Proof of Payment", "Burial Permit", "Authorization Letter", "Other"];
+
+  return (
+    <div className="space-y-3">
+      <div className="text-[10px] tracking-widest text-stone-500 font-semibold">ATTACHED DOCUMENTS</div>
+      {docs.length === 0 && <div className="text-xs text-stone-400 italic text-center py-4">No documents attached yet.</div>}
+      {docs.map(d => (
+        <div key={d.id} className="bg-white/70 rounded-lg border border-stone-200 p-3 flex items-center gap-3">
+          <FileText className="w-8 h-8 text-stone-500 flex-shrink-0"/>
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-stone-900">{d.label}</div>
+            <div className="text-[10px] text-stone-500">{d.type} · {new Date(d.uploadedAt).toLocaleDateString()}</div>
+          </div>
+          <a href={d.url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 bg-stone-900 text-white rounded text-xs"><ExternalLink className="w-3 h-3 inline mr-1"/>Open</a>
+          <button onClick={()=>removeDoc(d.id)} className="text-stone-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5"/></button>
+        </div>
+      ))}
+      <div className="bg-stone-50 rounded-lg border border-dashed border-stone-300 p-4">
+        <div className="text-[10px] tracking-widest text-stone-500 font-semibold mb-3">ATTACH DOCUMENT</div>
+        <div className="space-y-2">
+          <select value={newDoc.type} onChange={e=>setNewDoc({...newDoc, type:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm">
+            {docTypes.map(t => <option key={t}>{t}</option>)}
+          </select>
+          <input type="text" placeholder="Label (e.g. Death certificate of John Doe)" value={newDoc.label} onChange={e=>setNewDoc({...newDoc, label:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+          <input type="url" placeholder="Google Drive share URL" value={newDoc.url} onChange={e=>setNewDoc({...newDoc, url:e.target.value})} className="w-full px-3 py-2 rounded border border-stone-300 text-sm"/>
+          <button onClick={addDoc} className="w-full py-2 bg-stone-900 hover:bg-stone-700 text-white rounded text-sm"><Plus className="w-4 h-4 inline mr-1"/>Attach</button>
+          <div className="text-[10px] text-stone-500 italic">Upload to Google Drive first, then paste the share link here.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ PENDING VERIFICATIONS VIEW ============
+function PendingView({ data, save, logAudit, allLots, currentUser }) {
+  const lotsById = useMemo(() => Object.fromEntries(allLots.map(l => [l.id, l])), [allLots]);
+  const items = data.pendingVerifications || [];
+
+  // Filter based on user: admin sees all; submitters see their own
+  const visible = useMemo(() => {
+    if (can(currentUser, "verifyPending")) return items;
+    return items.filter(i => i.submittedBy === currentUser.id);
+  }, [items, currentUser]);
+
+  const pending = visible.filter(i => i.status === "pending");
+  const recent = visible.filter(i => i.status !== "pending").slice().sort((a,b) => (b.resolvedAt||"").localeCompare(a.resolvedAt||"")).slice(0, 20);
+
+  const approve = (item) => {
+    if (!can(currentUser, "verifyPending")) return alert("Only admins can approve verifications.");
+    if (!confirm(`Approve ${item.payment?.orNumber || item.id}? This will add it to the ledger.`)) return;
+    // Apply the payment to the lot
+    const r = data.lots[item.lotId];
+    if (!r) return alert("Lot not found.");
+    const p = { ...item.payment, verifiedBy: currentUser.id, verifiedAt: nowISO() };
+    const updated = p.type === "maintenance"
+      ? { ...r, maintenancePayments: [...(r.maintenancePayments||[]), p] }
+      : { ...r, payments: [...(r.payments||[]), p] };
+    save({
+      ...data,
+      lots: { ...data.lots, [item.lotId]: updated },
+      pendingVerifications: items.map(i => i.id === item.id ? { ...i, status: "approved", resolvedAt: nowISO(), resolvedBy: currentUser.id } : i),
+    });
+    logAudit("approve", "pending", item.id, `Approved ${p.orNumber} ${peso(netPaymentAmount(p))} from ${data.users.find(u=>u.id===item.submittedBy)?.name}`);
+  };
+
+  const reject = (item) => {
+    if (!can(currentUser, "verifyPending")) return alert("Only admins can reject verifications.");
+    const reason = prompt("Reason for rejecting? (will be shown to submitter)");
+    if (!reason) return;
+    save({
+      ...data,
+      pendingVerifications: items.map(i => i.id === item.id ? { ...i, status: "rejected", rejectionReason: reason, resolvedAt: nowISO(), resolvedBy: currentUser.id } : i),
+    });
+    logAudit("reject", "pending", item.id, `Rejected ${item.payment?.orNumber}: ${reason}`);
+  };
+
+  const remove = (item) => {
+    if (!confirm("Remove this entry from the list?")) return;
+    save({...data, pendingVerifications: items.filter(i => i.id !== item.id)});
+  };
+
+  const userById = Object.fromEntries(data.users.map(u => [u.id, u]));
+
+  return (
+    <div className="px-8 py-6">
+      <div className="mb-4">
+        <h2 className="display-font text-3xl text-stone-900">{can(currentUser, "verifyPending") ? "Pending Verifications" : "My Submitted Entries"}</h2>
+        <div className="text-sm text-stone-600 italic">
+          {can(currentUser, "verifyPending")
+            ? `Review and approve payments submitted by accountant and marketing · ${pending.length} pending`
+            : "Status of your submitted payments — awaiting admin approval"}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        <div className="rounded-lg p-4 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500">PENDING</div>
+          <div className="display-font text-3xl text-amber-700">{pending.length}</div>
+        </div>
+        <div className="rounded-lg p-4 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500">APPROVED (recent)</div>
+          <div className="display-font text-3xl text-emerald-700">{recent.filter(r=>r.status==="approved").length}</div>
+        </div>
+        <div className="rounded-lg p-4 panel-shadow border border-stone-300 bg-white">
+          <div className="text-xs tracking-widest text-stone-500">REJECTED (recent)</div>
+          <div className="display-font text-3xl text-red-700">{recent.filter(r=>r.status==="rejected").length}</div>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden mb-6">
+        <div className="px-4 py-3 border-b border-stone-200 bg-amber-50">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold">PENDING REVIEW ({pending.length})</div>
+        </div>
+        {pending.length === 0 ? (
+          <div className="px-4 py-12 text-center text-stone-400 italic">✓ Nothing pending right now.</div>
+        ) : (
+          <table className="ledger">
+            <thead><tr><th>Submitted</th><th>Submitted by</th><th>Lot</th><th>Client</th><th>Type</th><th>OR #</th><th>Method</th><th style={{textAlign:"right"}}>Amount</th><th>Receipt Photo</th><th>Action</th></tr></thead>
+            <tbody>
+              {pending.map(item => {
+                const submitter = userById[item.submittedBy];
+                const lot = lotsById[item.lotId];
+                const p = item.payment || {};
+                return (
+                  <tr key={item.id}>
+                    <td style={{whiteSpace:"nowrap", fontSize:11}}>{new Date(item.submittedAt).toLocaleString()}</td>
+                    <td>
+                      <div className="text-sm font-semibold">{submitter?.name||item.submittedBy}</div>
+                      {submitter && <span className="role-pill" style={{background: ROLES[submitter.role].color, fontSize:9, padding:"1px 6px"}}>{ROLES[submitter.role].label}</span>}
+                    </td>
+                    <td><span className="badge" style={{background: SECTIONS[item.lotSection]?.color+"33", color: SECTIONS[item.lotSection]?.color}}>#{item.lotDisplayId} {SECTIONS[item.lotSection]?.label.split(" ")[0]}</span></td>
+                    <td>{item.clientName}</td>
+                    <td><span className="badge" style={{background: TX_TYPES[p.type]?.color, color: TX_TYPES[p.type]?.textColor}}>{TX_TYPES[p.type]?.label || p.type}</span></td>
+                    <td style={{fontFamily:"monospace", fontSize:11}}>{p.orNumber}</td>
+                    <td><span className="text-xs">{p.method}</span></td>
+                    <td style={{textAlign:"right", fontWeight:600}}>{peso(netPaymentAmount(p))}</td>
+                    <td>
+                      {p.receiptPhotoUrl ? (
+                        <a href={p.receiptPhotoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-stone-900 text-white rounded text-[10px]">
+                          <ExternalLink className="w-3 h-3"/>View Photo
+                        </a>
+                      ) : (
+                        <span className="badge" style={{background:"#f4a8a8", color:"#5e1a1a"}}>NO PHOTO</span>
+                      )}
+                    </td>
+                    <td>
+                      {can(currentUser, "verifyPending") ? (
+                        <div className="flex gap-1">
+                          <button onClick={()=>approve(item)} className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-[10px]"><CheckCircle2 className="w-3 h-3 inline mr-0.5"/>Approve</button>
+                          <button onClick={()=>reject(item)} className="px-2 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-[10px]"><XCircle className="w-3 h-3 inline mr-0.5"/>Reject</button>
+                        </div>
+                      ) : (
+                        <span className="badge" style={{background:"#fde4a8", color:"#7a5a0f"}}>AWAITING REVIEW</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="bg-white/90 rounded-lg border border-stone-300 panel-shadow overflow-hidden">
+        <div className="px-4 py-3 border-b border-stone-200 bg-stone-100">
+          <div className="text-xs tracking-widest text-stone-700 font-semibold">RECENTLY RESOLVED</div>
+        </div>
+        {recent.length === 0 ? (
+          <div className="px-4 py-8 text-center text-stone-400 italic text-sm">No resolved verifications yet.</div>
+        ) : (
+          <table className="ledger">
+            <thead><tr><th>Resolved</th><th>Status</th><th>OR #</th><th>Lot</th><th>Submitter</th><th style={{textAlign:"right"}}>Amount</th><th>Resolved by</th><th>Notes</th><th></th></tr></thead>
+            <tbody>
+              {recent.map(item => {
+                const submitter = userById[item.submittedBy];
+                const resolver = userById[item.resolvedBy];
+                const p = item.payment || {};
+                return (
+                  <tr key={item.id}>
+                    <td style={{whiteSpace:"nowrap", fontSize:11}}>{item.resolvedAt ? new Date(item.resolvedAt).toLocaleString() : ""}</td>
+                    <td><span className="badge" style={{background: item.status==="approved"?"#a8d5ba":"#f4a8a8", color: item.status==="approved"?"#1f4a2d":"#5e1a1a"}}>{item.status.toUpperCase()}</span></td>
+                    <td style={{fontFamily:"monospace", fontSize:11}}>{p.orNumber}</td>
+                    <td>#{item.lotDisplayId}</td>
+                    <td className="text-xs">{submitter?.name||item.submittedBy}</td>
+                    <td style={{textAlign:"right"}}>{peso(netPaymentAmount(p))}</td>
+                    <td className="text-xs">{resolver?.name||""}</td>
+                    <td className="text-xs italic text-stone-600">{item.rejectionReason||""}</td>
+                    <td><button onClick={()=>remove(item)} className="text-stone-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5"/></button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
