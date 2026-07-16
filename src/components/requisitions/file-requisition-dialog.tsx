@@ -13,37 +13,37 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ClientCombobox } from "@/components/shared/client-combobox";
 import { RequiredLegend } from "@/components/shared/required-legend";
-import { recordCollectionAction, type RecordCollectionState } from "@/server/actions/collections";
+import { createRequisitionAction, type RequisitionActionState } from "@/server/actions/requisitions";
 
 const selectClass =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-const initialState: RecordCollectionState = { error: null, success: false };
+const initialState: RequisitionActionState = { error: null, success: false };
 
-export function LogPaymentDialog({
-  clients,
-  requireReceipt = false,
-}: {
-  clients: { id: string; name: string }[];
-  requireReceipt?: boolean;
-}) {
+const CATEGORIES = [
+  "Office supplies",
+  "Utilities",
+  "Maintenance/Grounds",
+  "Transportation",
+  "Marketing",
+  "Staff/Payroll",
+  "Repairs",
+  "Capital expenditure",
+  "Other",
+];
+
+export function FileRequisitionDialog({ thresholdCents }: { thresholdCents: number }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
     setError(null);
-    const clientId = String(formData.get("clientId") ?? "");
-    const client = clients.find((c) => c.id === clientId);
-    if (client) formData.set("clientName", client.name);
-
     startTransition(async () => {
-      const result = await recordCollectionAction(initialState, formData);
+      const result = await createRequisitionAction(initialState, formData);
       if (result.success) {
-        toast.success("Payment logged");
+        toast.success("Requisition filed");
         setOpen(false);
       } else {
         setError(result.error);
@@ -59,35 +59,39 @@ export function LogPaymentDialog({
         className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90"
       >
         <Plus className="size-4" strokeWidth={2.5} />
-        Log payment
+        File requisition
       </button>
       <DialogContent className="sm:max-w-md">
         <form action={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Log a payment</DialogTitle>
-            <DialogDescription>Record cash, bank, check, or GCash collections.</DialogDescription>
+            <DialogTitle>File a requisition</DialogTitle>
+            <DialogDescription>
+              ₱{(thresholdCents / 100).toLocaleString()} and above needs admin approval before it&apos;s booked as
+              an expense. Below that, it&apos;s recorded right away.
+            </DialogDescription>
           </DialogHeader>
 
           <RequiredLegend />
 
           <div className="flex flex-col gap-1.5">
-            <Label required>Client</Label>
-            <ClientCombobox clients={clients} required />
+            <Label htmlFor="description" required>Description</Label>
+            <Input id="description" name="description" required />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="lotDisplayId">Lot (optional)</Label>
-              <Input id="lotDisplayId" name="lotDisplayId" placeholder="A50" />
+              <Label htmlFor="category">Category</Label>
+              <select id="category" name="category" defaultValue="Other" className={selectClass}>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="type">Type</Label>
-              <select id="type" name="type" defaultValue="payment" className={selectClass}>
-                <option value="payment">Payment</option>
-                <option value="downpayment">Downpayment</option>
-                <option value="reservation">Reservation</option>
-                <option value="other">Other</option>
-              </select>
+              <Label htmlFor="vendor">Vendor</Label>
+              <Input id="vendor" name="vendor" placeholder="Supplier / payee" />
             </div>
           </div>
 
@@ -97,37 +101,26 @@ export function LogPaymentDialog({
               <Input id="amountPesos" name="amountPesos" type="number" step="0.01" min="0.01" required />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="method">Method</Label>
-              <select id="method" name="method" defaultValue="cash" className={selectClass}>
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank transfer</option>
-                <option value="check">Check</option>
-                <option value="gcash">GCash</option>
+              <Label htmlFor="paidFrom">Paid from</Label>
+              <select id="paidFrom" name="paidFrom" defaultValue="bank" className={selectClass}>
+                <option value="petty_cash">Petty cash</option>
+                <option value="bank">Bank</option>
                 <option value="other">Other</option>
               </select>
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="orNumber">OR number</Label>
-            <Input id="orNumber" name="orNumber" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note">Note</Label>
-            <Textarea id="note" name="note" rows={2} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="receipt" required={requireReceipt}>
-              {requireReceipt ? "Receipt / OR photo" : "Receipt photo (optional)"}
-            </Label>
+            <Label htmlFor="supportingDoc" required>Supporting document</Label>
             <input
-              id="receipt"
-              name="receipt"
+              id="supportingDoc"
+              name="supportingDoc"
               type="file"
               accept="image/*,application/pdf"
-              required={requireReceipt}
+              required
               className="text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-secondary-foreground"
             />
+            <p className="text-xs text-muted-foreground">Quotation, invoice, or receipt — a photo is fine.</p>
           </div>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -138,7 +131,7 @@ export function LogPaymentDialog({
               disabled={pending}
               className="flex items-center justify-center rounded-full bg-primary px-5 py-3 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              {pending ? "Saving…" : "Log payment"}
+              {pending ? "Filing…" : "File requisition"}
             </button>
           </DialogFooter>
         </form>

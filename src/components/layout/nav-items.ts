@@ -6,11 +6,14 @@ import {
   Rows3,
   Wallet,
   ClipboardCheck,
+  ClipboardList,
   AlertTriangle,
   Receipt,
   History,
   Settings,
   HelpCircle,
+  Boxes,
+  Handshake,
 } from "lucide-react";
 import type { NavId } from "@/lib/permissions";
 import type { LangKey } from "@/lib/i18n/dictionary";
@@ -28,6 +31,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Dashboard", labelKey: "nav.home", href: "/", icon: LayoutDashboard },
   { id: "map", label: "Park Map", labelKey: "nav.map", href: "/map", icon: Map },
+  { id: "inventory", label: "Inventory", labelKey: "nav.inventory", href: "/inventory", icon: Boxes },
   {
     id: "clients",
     label: "Clients",
@@ -43,6 +47,14 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "expenses", label: "Expenses", labelKey: "nav.expenses", href: "/expenses", icon: Receipt },
   { id: "audit", label: "Audit", labelKey: "nav.audit", href: "/audit", icon: History },
   { id: "pending", label: "Approvals", labelKey: "nav.pending", href: "/pending", icon: ClipboardCheck },
+  {
+    id: "requisitions",
+    label: "Requisitions",
+    labelKey: "nav.requisitions",
+    href: "/requisitions",
+    icon: ClipboardList,
+  },
+  { id: "agents", label: "Agents", labelKey: "nav.agents", href: "/agents", icon: Handshake },
   { id: "faq", label: "Help / FAQ", labelKey: "nav.faq", href: "/faq", icon: HelpCircle },
   { id: "settings", label: "Settings", labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];

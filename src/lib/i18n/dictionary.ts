@@ -22,6 +22,9 @@ export const DICTIONARY = {
   "nav.expenses": { en: "Expenses", bisaya: "Gasto" },
   "nav.audit": { en: "Audit", bisaya: "Talaan sa Buhat" },
   "nav.pending": { en: "Approvals", bisaya: "Pag-uyon" },
+  "nav.inventory": { en: "Inventory", bisaya: "Imbentaryo" },
+  "nav.requisitions": { en: "Requisitions", bisaya: "Hangyo sa Gasto" },
+  "nav.agents": { en: "Agents", bisaya: "mga Ahente" },
   "nav.settings": { en: "Settings", bisaya: "Kasayoran sa Panid" },
   "nav.faq": { en: "Help / FAQ", bisaya: "Tabang / Mga Pangutana" },
 
@@ -52,6 +55,24 @@ export const DICTIONARY = {
   "page.lots.desc": {
     en: "Every inventory unit, its current status, and who holds it.",
     bisaya: "Tanan nga lote, ang kahimtang niini karon, ug kinsay nag-book.",
+  },
+
+  "page.inventory.title": { en: "Inventory", bisaya: "Imbentaryo" },
+  "page.inventory.desc": {
+    en: "How many lots are available, reserved, or sold, by section and tier.",
+    bisaya: "Pila ka lote ang available, reserved, o sold, matag section ug tier.",
+  },
+
+  "page.requisitions.title": { en: "Requisitions", bisaya: "Hangyo sa Gasto" },
+  "page.requisitions.desc": {
+    en: "Requests for company spending, with supporting documents. Large amounts need admin approval before they're booked.",
+    bisaya: "Mga hangyo para mogasto ang kompanya, dunay proof. Ang dagkong kantidad kinahanglan una nga aprobahan sa admin.",
+  },
+
+  "page.agents.title": { en: "Agents", bisaya: "mga Ahente" },
+  "page.agents.desc": {
+    en: "Sales agents, their commission rate, and how much is owed to each.",
+    bisaya: "Mga ahente sa benta, ang ilang komisyon, ug pila pa ang utang kanila.",
   },
 
   "page.expenses.title": { en: "Expenses", bisaya: "Gasto" },

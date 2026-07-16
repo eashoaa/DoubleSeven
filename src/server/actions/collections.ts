@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { can } from "@/lib/permissions";
 import { recordCollection, markCollectionDeposited, saveReceipt } from "@/lib/server/local-store";
 
 export interface RecordCollectionState {
@@ -37,6 +38,10 @@ export async function recordCollectionAction(
   }
 
   const user = await getCurrentUser();
+
+  if (can(user.role, "requireReceiptPhoto") && (!receiptFile || receiptFile.size === 0)) {
+    return { error: "A receipt or OR photo is required for this payment.", success: false };
+  }
 
   let receiptId: string | null = null;
   if (receiptFile && receiptFile.size > 0) {

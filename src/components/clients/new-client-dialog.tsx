@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClientAction, type CreateClientState } from "@/server/actions/clients";
 import { getAvailableLotsAction, type AvailableLot } from "@/server/actions/lots";
+import { getAgentsAction } from "@/server/actions/agents";
+import type { LocalAgent } from "@/lib/server/local-store";
 import { SplitLetters } from "@/components/layout/split-letters";
 import { RequiredLegend } from "@/components/shared/required-legend";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -31,6 +33,7 @@ export function NewClientDialog({ className, children }: { className?: string; c
   const [pending, startTransition] = useTransition();
   const [lots, setLots] = useState<AvailableLot[] | null>(null);
   const [selectedLot, setSelectedLot] = useState<AvailableLot | null>(null);
+  const [agents, setAgents] = useState<LocalAgent[] | null>(null);
 
   function handleOpen() {
     setOpen(true);
@@ -38,6 +41,11 @@ export function NewClientDialog({ className, children }: { className?: string; c
       startTransition(async () => {
         const available = await getAvailableLotsAction();
         setLots(available);
+      });
+    }
+    if (agents === null) {
+      startTransition(async () => {
+        setAgents(await getAgentsAction());
       });
     }
   }
@@ -156,6 +164,19 @@ export function NewClientDialog({ className, children }: { className?: string; c
                   <option value="annual">Annual</option>
                 </select>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="agentId">Sales agent (optional)</Label>
+              <select id="agentId" name="agentId" defaultValue="" className={selectClass}>
+                <option value="">No agent / not tracked</option>
+                {agents?.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.commissionRatePercent}%)
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Tags this client for commission tracking.</p>
             </div>
 
             <div className="flex flex-col gap-1.5">

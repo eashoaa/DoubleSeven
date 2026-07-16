@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/current-user";
+import { can } from "@/lib/permissions";
 import { getDevMasterlist, MASTERLIST_SNAPSHOT_DATE } from "@/lib/domain/dev-masterlist";
 import { listCollections, listLocalClients } from "@/lib/server/local-store";
 import { LogPaymentDialog } from "@/components/collections/log-payment-dialog";
@@ -119,7 +121,12 @@ async function getClientOptions(): Promise<{ id: string; name: string }[]> {
 }
 
 export default async function CollectionsPage() {
-  const [rows, clientOptions] = await Promise.all([getCollections(), getClientOptions()]);
+  const [rows, clientOptions, user] = await Promise.all([
+    getCollections(),
+    getClientOptions(),
+    getCurrentUser(),
+  ]);
+  const requireReceipt = can(user.role, "requireReceiptPhoto");
 
   const undeposited = rows.filter((r) => !r.deposited && !r.voided);
   const undepositedTotal = undeposited.reduce((sum, r) => sum + r.netCents, 0);
@@ -137,7 +144,7 @@ export default async function CollectionsPage() {
             <FileSpreadsheet className="size-4" strokeWidth={2} />
             Export ledger (.xlsx)
           </Link>
-          <LogPaymentDialog clients={clientOptions} />
+          <LogPaymentDialog clients={clientOptions} requireReceipt={requireReceipt} />
         </div>
       </div>
 

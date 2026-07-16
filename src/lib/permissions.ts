@@ -44,7 +44,9 @@ export type NavId =
   | "settings"
   | "pending"
   | "overdue"
-  | "faq";
+  | "faq"
+  | "inventory"
+  | "requisitions";
 
 interface RoleDef {
   label: string;
@@ -80,6 +82,7 @@ export const ROLES: Record<Role, RoleDef> = {
     nav: [
       "home",
       "map",
+      "inventory",
       "ledger",
       "expenses",
       "clients",
@@ -92,6 +95,7 @@ export const ROLES: Record<Role, RoleDef> = {
       "trash",
       "settings",
       "pending",
+      "requisitions",
       "overdue",
       "faq",
     ],
@@ -117,7 +121,19 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   accountant: {
     label: "Accountant",
-    nav: ["home", "collections", "cash", "ledger", "pending", "overdue", "expenses", "settings", "faq"],
+    nav: [
+      "home",
+      "inventory",
+      "collections",
+      "cash",
+      "ledger",
+      "pending",
+      "requisitions",
+      "overdue",
+      "expenses",
+      "settings",
+      "faq",
+    ],
     can: {
       ...allFalse,
       viewAllFinancials: true,
@@ -129,7 +145,7 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   marketing: {
     label: "Marketing",
-    nav: ["home", "map", "clients", "pending", "overdue", "settings", "faq"],
+    nav: ["home", "map", "inventory", "clients", "pending", "requisitions", "overdue", "settings", "faq"],
     can: {
       ...allFalse,
       recordPayment: true,
@@ -141,12 +157,12 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   staff: {
     label: "Staff",
-    nav: ["home", "map", "clients", "settings", "faq"],
+    nav: ["home", "map", "inventory", "clients", "requisitions", "settings", "faq"],
     can: { ...allFalse },
   },
   agent: {
     label: "Sales Agent",
-    nav: ["home", "map", "clients", "settings", "faq"],
+    nav: ["home", "map", "inventory", "clients", "requisitions", "settings", "faq"],
     can: { ...allFalse },
   },
 };

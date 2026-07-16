@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createLocalClient, createLocalContract, saveReceipt, setContactOverride } from "@/lib/server/local-store";
+import {
+  createLocalClient,
+  createLocalContract,
+  saveReceipt,
+  setContactOverride,
+  setClientAgentTag,
+  listAgents,
+} from "@/lib/server/local-store";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 
 export interface CreateClientState {
@@ -36,6 +43,7 @@ export async function createClientAction(
   const termMonths = Number(formData.get("termMonths") ?? 0);
   const planType = String(formData.get("planType") ?? "monthly") as "monthly" | "quarterly" | "annual";
   const contractFile = formData.get("contract") as File | null;
+  const agentId = String(formData.get("agentId") ?? "").trim();
 
   const missing = Object.entries({
     name,
@@ -56,6 +64,13 @@ export async function createClientAction(
   }
 
   const user = await getCurrentUser();
+
+  async function tagAgentIfSelected(clientId: string, clientName: string) {
+    if (!agentId) return;
+    const agent = (await listAgents()).find((a) => a.id === agentId);
+    if (!agent) return;
+    await setClientAgentTag({ clientId, clientName, agentId: agent.id, agentName: agent.name, taggedBy: user.name });
+  }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const client = await createLocalClient({ name, contact, email, address, createdBy: user.name });
@@ -79,6 +94,7 @@ export async function createClientAction(
       contractFileId: receipt.id,
       createdBy: user.name,
     });
+    await tagAgentIfSelected(client.id, client.name);
 
     revalidatePath("/clients");
     revalidatePath("/lots");
@@ -132,6 +148,7 @@ export async function createClientAction(
   if (!uploadError) {
     await supabase.from("contracts").update({ contract_file_path: storagePath }).eq("id", newContract.id);
   }
+  await tagAgentIfSelected(newClient.id, name);
 
   revalidatePath("/clients");
   revalidatePath("/lots");

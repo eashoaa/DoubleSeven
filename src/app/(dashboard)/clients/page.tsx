@@ -12,10 +12,16 @@ import { ClickableRow } from "@/components/shared/clickable-row";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getDevMasterlist } from "@/lib/domain/dev-masterlist";
-import { listLocalClients, listLocalContracts, getContactOverrides } from "@/lib/server/local-store";
+import {
+  listLocalClients,
+  listLocalContracts,
+  getContactOverrides,
+  getClientAgentTags,
+} from "@/lib/server/local-store";
 import { PageSearchInput } from "@/components/shared/page-search-input";
 import { PageHeader } from "@/components/layout/page-header";
 import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
+import { AssignAgentDialog } from "@/components/clients/assign-agent-dialog";
 
 interface ClientRow {
   id: string;
@@ -24,9 +30,12 @@ interface ClientRow {
   email: string | null;
   since: string;
   contractCount: number;
+  agentName: string | null;
 }
 
 async function getClients(): Promise<ClientRow[]> {
+  const agentTags = await getClientAgentTags();
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const { clients } = getDevMasterlist();
     const local = await listLocalClients();
@@ -38,31 +47,34 @@ async function getClients(): Promise<ClientRow[]> {
     }
 
     const merged: ClientRow[] = [
-      ...clients.map((c) => ({ ...c, contractCount: c.contractCount + (localContractCountByClient.get(c.id) ?? 0) })),
-      ...local.map((c) => ({ ...c, contractCount: localContractCountByClient.get(c.id) ?? 0 })),
+      ...clients.map((c) => ({
+        ...c,
+        contractCount: c.contractCount + (localContractCountByClient.get(c.id) ?? 0),
+        agentName: null,
+      })),
+      ...local.map((c) => ({ ...c, contractCount: localContractCountByClient.get(c.id) ?? 0, agentName: null })),
     ];
 
     return merged
       .map((c) => {
         const override = overrides[c.id];
-        return { ...c, contact: override?.contact ?? c.contact, email: override?.email ?? c.email };
+        return {
+          ...c,
+          contact: override?.contact ?? c.contact,
+          email: override?.email ?? c.email,
+          agentName: agentTags[c.id]?.agentName ?? null,
+        };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   const supabase = await createClient();
-  const { data: clients } = await supabase
-    .from("clients")
-    .select("id, name, contact, email, since")
-    .is("deleted_at", null)
-    .order("name");
+  const [{ data: clients }, { data: contracts }] = await Promise.all([
+    supabase.from("clients").select("id, name, contact, email, since").is("deleted_at", null).order("name"),
+    supabase.from("contracts").select("client_id").is("deleted_at", null),
+  ]);
 
   if (!clients || clients.length === 0) return [];
-
-  const { data: contracts } = await supabase
-    .from("contracts")
-    .select("client_id")
-    .is("deleted_at", null);
 
   const contractCountByClient = new Map<string, number>();
   for (const c of contracts ?? []) {
@@ -72,6 +84,7 @@ async function getClients(): Promise<ClientRow[]> {
   return clients.map((c) => ({
     ...c,
     contractCount: contractCountByClient.get(c.id) ?? 0,
+    agentName: agentTags[c.id]?.agentName ?? null,
   }));
 }
 
@@ -116,6 +129,9 @@ export default async function ClientsPage({
                 <TableHead className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Client since
                 </TableHead>
+                <TableHead className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Agent
+                </TableHead>
                 <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Contracts
                 </TableHead>
@@ -138,6 +154,16 @@ export default async function ClientsPage({
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(client.since)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>{client.agentName ?? "—"}</span>
+                      <AssignAgentDialog
+                        clientId={client.id}
+                        clientName={client.name}
+                        currentAgentName={client.agentName}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">
                     {client.contractCount}
