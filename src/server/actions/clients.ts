@@ -105,17 +105,33 @@ export async function createClientAction(
   const { data: lot } = await supabase.from("lots").select("id").eq("display_id", lotDisplayId).single();
   if (!lot) return { error: `Lot ${lotDisplayId} not found.`, success: false };
 
-  const { error: contractError } = await supabase.from("contracts").insert({
-    lot_id: lot.id,
-    client_id: newClient.id,
-    price_cents: priceCents,
-    downpayment_cents: downpaymentCents,
-    term_months: termMonths,
-    plan_type: planType,
-    start_date: new Date().toISOString().slice(0, 10),
-    status: "reserved",
-  });
-  if (contractError) return { error: contractError.message, success: false };
+  const { data: newContract, error: contractError } = await supabase
+    .from("contracts")
+    .insert({
+      lot_id: lot.id,
+      client_id: newClient.id,
+      price_cents: priceCents,
+      downpayment_cents: downpaymentCents,
+      term_months: termMonths,
+      plan_type: planType,
+      start_date: new Date().toISOString().slice(0, 10),
+      status: "reserved",
+    })
+    .select("id")
+    .single();
+  if (contractError || !newContract) return { error: contractError?.message ?? "Failed to create contract.", success: false };
+
+  const ext = contractFile!.name.split(".").pop() || "pdf";
+  const storagePath = `${newContract.id}.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("contracts")
+    .upload(storagePath, contractFile!, {
+      contentType: contractFile!.type || "application/pdf",
+      upsert: true,
+    });
+  if (!uploadError) {
+    await supabase.from("contracts").update({ contract_file_path: storagePath }).eq("id", newContract.id);
+  }
 
   revalidatePath("/clients");
   revalidatePath("/lots");

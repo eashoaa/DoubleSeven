@@ -13,7 +13,7 @@ export function LanguageToggle() {
   const { lang, setLang } = useLanguage();
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-hairline bg-white/70 p-0.5">
+    <div className="hidden shrink-0 items-center gap-0.5 rounded-full border border-hairline bg-white/70 p-0.5 sm:flex">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}

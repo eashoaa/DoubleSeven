@@ -98,9 +98,9 @@ export default async function LotsPage({
         <div className="flex items-center gap-2">
           <Link
             href="/api/export/ledger"
-            className="flex items-center gap-2 rounded-full border border-hairline bg-white/70 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-white"
+            className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-white/70 px-4 py-2.5 text-sm font-medium whitespace-nowrap text-foreground hover:bg-white"
           >
-            <FileSpreadsheet className="size-4" strokeWidth={2} />
+            <FileSpreadsheet className="size-4 shrink-0" strokeWidth={2} />
             Export ledger (.xlsx)
           </Link>
           <PageSearchInput basePath="/lots" defaultValue={q ?? ""} placeholder="Filter by lot or client…" />
@@ -145,7 +145,11 @@ export default async function LotsPage({
             <TableBody>
               {lots.map((lot) => (
                 <TableRow key={lot.id}>
-                  <TableCell className="font-medium text-foreground">{lot.displayId}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    <Link href={`/map?lot=${encodeURIComponent(lot.displayId)}`} className="hover:underline">
+                      {lot.displayId}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {SECTION_LABEL[lot.section] ?? lot.section}
                   </TableCell>

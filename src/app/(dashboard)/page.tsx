@@ -198,20 +198,24 @@ export default async function DashboardPage() {
           ) : (
             <ul className="mt-4 flex flex-col divide-y divide-hairline">
               {stats.topOverdue.map((row) => (
-                <li key={row.contractId}>
-                  <Link
-                    href={`/clients?q=${encodeURIComponent(row.clientName)}`}
-                    className="-mx-2 flex items-center justify-between rounded-lg px-2 py-3 transition-colors hover:bg-accent/60"
-                  >
-                    <div>
-                      <div className="text-sm font-medium text-foreground">{row.clientName}</div>
-                      <div className="text-xs text-muted-foreground">{row.lotDisplayId}</div>
+                <li key={row.contractId} className="-mx-2 flex items-center justify-between rounded-lg px-2 py-3 transition-colors hover:bg-accent/60">
+                  <div>
+                    <Link
+                      href={`/clients?q=${encodeURIComponent(row.clientName)}`}
+                      className="text-sm font-medium text-foreground hover:underline"
+                    >
+                      {row.clientName}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">
+                      <Link href={`/map?lot=${encodeURIComponent(row.lotDisplayId)}`} className="hover:underline">
+                        {row.lotDisplayId}
+                      </Link>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Money centavos={row.priceCents} className="text-sm text-muted-foreground" />
-                      <StatusBadge status={row.status} />
-                    </div>
-                  </Link>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Money centavos={row.priceCents} className="text-sm text-muted-foreground" />
+                    <StatusBadge status={row.status} />
+                  </div>
                 </li>
               ))}
             </ul>

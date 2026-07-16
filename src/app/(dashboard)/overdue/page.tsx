@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Money } from "@/components/shared/money";
@@ -70,7 +71,11 @@ export default async function OverduePage() {
               {overdue.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium text-foreground">{c.clientName}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.lotDisplayId}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <Link href={`/map?lot=${encodeURIComponent(c.lotDisplayId)}`} className="hover:underline">
+                      {c.lotDisplayId}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={c.status} />
                   </TableCell>

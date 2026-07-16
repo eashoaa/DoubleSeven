@@ -3,11 +3,13 @@
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { Menu } from "lucide-react";
 import type { Role } from "@/lib/permissions";
 import { UserMenu } from "./user-menu";
 import { SearchBar } from "./search-bar";
 import { NotificationBell, type NotificationPreview } from "./notification-bell";
 import { LanguageToggle } from "./language-toggle";
+import { setMobileMenuOpen } from "./sidebar-state";
 
 gsap.registerPlugin(useGSAP);
 
@@ -41,13 +43,22 @@ export function Topbar({
   );
 
   return (
-    <header ref={ref} className="flex items-center gap-4 px-4 py-3">
-      <div className="w-[320px] max-w-full">
+    <header ref={ref} className="flex items-center gap-2 px-3 py-3 sm:gap-4 sm:px-4">
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(true)}
+        aria-label="Open menu"
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-hairline bg-white/70 text-foreground/70 hover:bg-white md:hidden"
+      >
+        <Menu className="size-4.5" strokeWidth={2} />
+      </button>
+
+      <div className="min-w-0 flex-1 sm:max-w-[320px] sm:flex-initial">
         <SearchBar />
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
-        <span className="hidden text-sm font-medium text-foreground/70 md:inline">
+      <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <span className="hidden text-sm font-medium text-foreground/70 lg:inline">
           {dateFmt.format(new Date())}
         </span>
         <LanguageToggle />

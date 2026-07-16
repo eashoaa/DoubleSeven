@@ -1,5 +1,4 @@
-import { FileText, Users } from "lucide-react";
-import Link from "next/link";
+import { Users } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
@@ -9,14 +8,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableRow } from "@/components/shared/clickable-row";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getDevMasterlist } from "@/lib/domain/dev-masterlist";
 import { listLocalClients, listLocalContracts, getContactOverrides } from "@/lib/server/local-store";
-import contractPdfs from "../../../../scripts/data/contract-pdfs.json";
 import { PageSearchInput } from "@/components/shared/page-search-input";
 import { PageHeader } from "@/components/layout/page-header";
-import { ClientHistoryDialog } from "@/components/clients/client-history-dialog";
 import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
 
 interface ClientRow {
@@ -77,8 +75,6 @@ async function getClients(): Promise<ClientRow[]> {
   }));
 }
 
-const CONTRACT_PDFS = contractPdfs as Record<string, string[]>;
-
 export default async function ClientsPage({
   searchParams,
 }: {
@@ -123,64 +119,31 @@ export default async function ClientsPage({
                 <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Contracts
                 </TableHead>
-                <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Documents
-                </TableHead>
-                <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  History
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((client) => {
-                const pdfs = CONTRACT_PDFS[client.name] ?? [];
-                return (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium text-foreground">{client.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span>{client.contact ?? client.email ?? "-"}</span>
-                        <EditContactDialog
-                          clientId={client.id}
-                          clientName={client.name}
-                          contact={client.contact}
-                          email={client.email}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(client.since)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {client.contractCount}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pdfs.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">Not on file</span>
-                      ) : (
-                        <div className="flex justify-end gap-2">
-                          {pdfs.map((filename) => (
-                            <Link
-                              key={filename}
-                              href={`/api/contracts/${encodeURIComponent(filename)}`}
-                              target="_blank"
-                              className="inline-flex items-center gap-1 rounded-full border border-hairline px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
-                            >
-                              <FileText className="size-3" strokeWidth={2} />
-                              View
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <ClientHistoryDialog clientId={client.id} clientName={client.name} />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {filtered.map((client) => (
+                <ClickableRow key={client.id} href={`/clients/${client.id}`}>
+                  <TableCell className="font-medium text-foreground">{client.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <span>{client.contact ?? client.email ?? "-"}</span>
+                      <EditContactDialog
+                        clientId={client.id}
+                        clientName={client.name}
+                        contact={client.contact}
+                        email={client.email}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(client.since)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {client.contractCount}
+                  </TableCell>
+                </ClickableRow>
+              ))}
             </TableBody>
           </Table>
         </div>

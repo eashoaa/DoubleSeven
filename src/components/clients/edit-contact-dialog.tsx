@@ -49,7 +49,10 @@ export function EditContactDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-1 rounded-full border border-dashed border-hairline px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
       >
         <Pencil className="size-3" strokeWidth={2} />

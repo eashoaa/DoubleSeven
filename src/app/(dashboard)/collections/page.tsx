@@ -198,7 +198,15 @@ export default async function CollectionsPage() {
                 <TableRow key={row.id}>
                   <TableCell className="text-muted-foreground">{formatDate(row.paidAt)}</TableCell>
                   <TableCell className="font-medium text-foreground">{row.clientName}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.lotDisplayId}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {row.lotDisplayId === "-" ? (
+                      "-"
+                    ) : (
+                      <Link href={`/map?lot=${encodeURIComponent(row.lotDisplayId)}`} className="hover:underline">
+                        {row.lotDisplayId}
+                      </Link>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground capitalize">
                     {row.type.replace(/_/g, " ")}
                   </TableCell>

@@ -22,7 +22,7 @@ export function UserMenu({ user }: { user: { name: string; role: Role } }) {
         <span className="flex size-7 items-center justify-center rounded-full bg-chip-indigo-bg text-xs font-semibold text-chip-indigo-fg">
           {initials(user.name)}
         </span>
-        <span className="text-left leading-tight">
+        <span className="hidden text-left leading-tight sm:block">
           <span className="block text-sm font-medium text-foreground">{user.name}</span>
           <span className="block text-xs text-muted-foreground">
             {ROLES[user.role]?.label ?? user.role}

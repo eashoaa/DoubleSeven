@@ -29,15 +29,22 @@ export function DigitalGrid({
   lots,
   paintMode,
   onLocateOnMap,
+  autoOpenLotId,
 }: {
   layout: SectionLayout;
   lots: MapLot[];
   paintMode: PaintMode;
   onLocateOnMap?: (lot: MapLot) => void;
+  autoOpenLotId?: string;
 }) {
   const byId = useMemo(() => new Map(lots.map((l) => [l.displayId, l])), [lots]);
-  const [selectedLot, setSelectedLot] = useState<MapLot | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Initializers only, not an effect: the parent (ParkMap, keyed by the
+  // requested lot in map/page.tsx) fully remounts this component whenever
+  // the deep-linked lot changes, so there's no separate case to sync here.
+  const [selectedLot, setSelectedLot] = useState<MapLot | null>(() =>
+    autoOpenLotId ? (byId.get(autoOpenLotId) ?? null) : null
+  );
+  const [sheetOpen, setSheetOpen] = useState(() => !!(autoOpenLotId && byId.get(autoOpenLotId)));
 
   return (
     <div className="flex flex-col gap-4">

@@ -10,7 +10,7 @@ export function SidebarToggleButton() {
     <button
       onClick={() => setSidebarCollapsed(!collapsed)}
       aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      className="shadow-card fixed bottom-6 left-6 z-40 flex size-14 items-center justify-center rounded-2xl border border-hairline bg-white text-foreground/70 transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="shadow-card fixed bottom-6 left-6 z-40 hidden size-14 items-center justify-center rounded-2xl border border-hairline bg-white text-foreground/70 transition-colors hover:bg-accent hover:text-accent-foreground md:flex"
     >
       {collapsed ? (
         <PanelLeftOpen className="size-6" strokeWidth={2} />

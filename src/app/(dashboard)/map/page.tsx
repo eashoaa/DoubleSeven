@@ -61,8 +61,12 @@ async function getMapLots(): Promise<MapLot[]> {
   }));
 }
 
-export default async function MapPage() {
-  const lots = await getMapLots();
+export default async function MapPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lot?: string }>;
+}) {
+  const [lots, { lot }] = await Promise.all([getMapLots(), searchParams]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,7 +79,10 @@ export default async function MapPage() {
           description="Run scripts/seed-inventory.ts against your Supabase project to generate the lot map."
         />
       ) : (
-        <ParkMap lots={lots} />
+        // Keyed by the requested lot so clicking a different "?lot=" link
+        // while already on this page resets the digital-grid state cleanly
+        // (a fresh mount) instead of needing an effect to re-sync it.
+        <ParkMap key={lot ?? "default"} lots={lots} requestedLotId={lot} />
       )}
 
       <LotTypesReference />

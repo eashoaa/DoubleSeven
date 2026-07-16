@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { cn } from "@/lib/utils";
@@ -46,11 +46,31 @@ const SECTION_TO_BLUEPRINT: Partial<Record<SectionCode, string>> = {
   ll: "lawn",
 };
 
-export function ParkMap({ lots }: { lots: MapLot[] }) {
+export function ParkMap({ lots, requestedLotId }: { lots: MapLot[]; requestedLotId?: string }) {
+  const requestedLot = useMemo(
+    () => (requestedLotId ? (lots.find((l) => l.displayId === requestedLotId) ?? null) : null),
+    [requestedLotId, lots]
+  );
+
+  const requestedLayout = requestedLot
+    ? DIGITAL_SECTION_LAYOUTS.find((l) => l.code === requestedLot.section)
+    : undefined;
+
+  // A lot linked to from elsewhere in the app (e.g. a client's contract row)
+  // jumps straight to the right section and opens its detail sheet, instead
+  // of landing on a generic map the staff member then has to search. Some
+  // sections (Family Estate, Court Estate, Ossuary) don't have a drawn
+  // digital layout yet, those just fall through to the default view. These
+  // are plain derived values, not state synced via an effect, so a second
+  // ?lot= link clicked while already on this page (key'd below) resets
+  // cleanly instead of needing manual re-sync.
   const [viewMode, setViewMode] = useState<ViewMode>("digital");
   const [paintMode, setPaintMode] = useState<PaintMode>("status");
-  const [sectionCode, setSectionCode] = useState<SectionCode>(DIGITAL_SECTION_LAYOUTS[0].code);
+  const [sectionCode, setSectionCode] = useState<SectionCode>(
+    requestedLayout ? (requestedLot!.section as SectionCode) : DIGITAL_SECTION_LAYOUTS[0].code
+  );
   const [locateBlueprintId, setLocateBlueprintId] = useState<string | undefined>(undefined);
+  const autoOpenLotId = requestedLayout ? requestedLot!.displayId : undefined;
   const contentRef = useRef<HTMLDivElement>(null);
 
   function handleLocateOnMap(lot: MapLot) {
@@ -112,6 +132,7 @@ export function ParkMap({ lots }: { lots: MapLot[] }) {
             lots={lots.filter((l) => l.section === sectionCode)}
             paintMode={paintMode}
             onLocateOnMap={handleLocateOnMap}
+            autoOpenLotId={autoOpenLotId}
           />
         ) : (
           <BlueprintViewer key={locateBlueprintId} initialId={locateBlueprintId} lots={lots} paintMode={paintMode} />

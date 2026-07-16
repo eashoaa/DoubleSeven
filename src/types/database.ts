@@ -129,6 +129,7 @@ export interface Database {
           plan_type: PlanTypeEnum;
           start_date: string;
           status: LotStatusEnum;
+          contract_file_path: string | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
