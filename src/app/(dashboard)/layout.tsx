@@ -1,23 +1,44 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { getOverdueContractsMerged } from "@/lib/domain/dev-masterlist";
+import type { NotificationPreview } from "@/components/layout/notification-bell";
+import { LanguageProvider } from "@/lib/i18n/language-context";
+import { SidebarToggleButton } from "@/components/layout/sidebar-toggle-button";
+
+async function getOverdueForBell(): Promise<NotificationPreview[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const overdue = await getOverdueContractsMerged();
+    return overdue.map((c) => ({
+      id: c.id,
+      clientName: c.clientName,
+      lotDisplayId: c.lotDisplayId,
+      overdueDays: c.overdueDays,
+      priceCents: c.priceCents,
+    }));
+  }
+  return [];
+}
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const [user, overdue] = await Promise.all([getCurrentUser(), getOverdueForBell()]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col">
-      <Topbar user={user} />
-      <div className="flex flex-1 gap-2 px-2 pb-2">
+    <LanguageProvider>
+      <div className="mx-auto flex min-h-dvh w-full max-w-[1440px] gap-2 px-2 pt-2 pb-2">
         <Sidebar role={user.role} />
-        <main className="flex-1 rounded-3xl border border-hairline bg-card p-8">
-          {children}
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <Topbar user={user} overdue={overdue} />
+          <main className="shadow-card min-h-0 flex-1 rounded-3xl border border-hairline bg-card p-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+      <SidebarToggleButton />
+    </LanguageProvider>
   );
 }

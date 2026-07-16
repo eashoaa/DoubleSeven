@@ -1,7 +1,15 @@
-import Link from "next/link";
-import { Search, Bell } from "lucide-react";
+"use client";
+
+import { useRef } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import type { Role } from "@/lib/permissions";
 import { UserMenu } from "./user-menu";
+import { SearchBar } from "./search-bar";
+import { NotificationBell, type NotificationPreview } from "./notification-bell";
+import { LanguageToggle } from "./language-toggle";
+
+gsap.registerPlugin(useGSAP);
 
 const dateFmt = new Intl.DateTimeFormat("en-PH", {
   weekday: "long",
@@ -12,32 +20,38 @@ const dateFmt = new Intl.DateTimeFormat("en-PH", {
 
 export function Topbar({
   user,
+  overdue,
 }: {
   user: { name: string; role: Role };
+  overdue: NotificationPreview[];
 }) {
-  return (
-    <header className="flex items-center gap-4 px-4 py-4">
-      <Link href="/" className="shrink-0 text-lg font-bold tracking-tight text-foreground">
-        D7 <span className="font-normal text-muted-foreground">Heaven&apos;s Gate</span>
-      </Link>
+  const ref = useRef<HTMLElement>(null);
 
-      <div className="flex flex-1 justify-center">
-        <div className="flex w-full max-w-md items-center gap-2 rounded-full border border-hairline bg-white/70 px-4 py-2 text-sm text-muted-foreground">
-          <Search className="size-4" strokeWidth={2} />
-          <span>Search clients, lots, OR number&hellip;</span>
-        </div>
+  useGSAP(
+    () => {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      gsap.from(ref.current, {
+        opacity: 0,
+        y: -6,
+        duration: reduced ? 0 : 0.4,
+        ease: "power2.out",
+      });
+    },
+    { scope: ref }
+  );
+
+  return (
+    <header ref={ref} className="flex items-center gap-4 px-4 py-3">
+      <div className="w-[320px] max-w-full">
+        <SearchBar />
       </div>
 
-      <div className="flex shrink-0 items-center gap-4">
-        <span className="hidden text-sm text-muted-foreground md:inline">
+      <div className="ml-auto flex items-center gap-3">
+        <span className="hidden text-sm font-medium text-foreground/70 md:inline">
           {dateFmt.format(new Date())}
         </span>
-        <button
-          aria-label="Notifications"
-          className="flex size-9 items-center justify-center rounded-full border border-hairline bg-white/70 text-foreground/70 hover:bg-white"
-        >
-          <Bell className="size-4" strokeWidth={2} />
-        </button>
+        <LanguageToggle />
+        <NotificationBell overdue={overdue} />
         <UserMenu user={user} />
       </div>
     </header>

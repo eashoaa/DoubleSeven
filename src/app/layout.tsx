@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { WashSettingsProvider } from "@/lib/theme/wash-settings";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,16 +15,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const newsreader = Newsreader({
+const playfairDisplay = Playfair_Display({
   variable: "--font-serif",
   subsets: ["latin"],
-  style: ["italic"],
-  weight: ["400", "500"],
+  style: ["italic", "normal"],
+  weight: ["500", "600"],
 });
 
 export const metadata: Metadata = {
   title: "D7 | Heaven's Gate Memorial Park",
-  description: "Double Seven Properties — Heaven's Gate Memorial Park operations",
+  description: "Double Seven Properties: Heaven's Gate Memorial Park operations",
 };
 
 export default function RootLayout({
@@ -34,10 +35,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>{children}</TooltipProvider>
+        <WashSettingsProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </WashSettingsProvider>
         <Toaster />
       </body>
     </html>

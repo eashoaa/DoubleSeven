@@ -86,7 +86,7 @@ describe("deriveLotStatus", () => {
     expect(status).toBe("paid");
   });
 
-  it("cancelled is a manual override the caller applies on top — this function never returns it", () => {
+  it("cancelled is a manual override the caller applies on top: this function never returns it", () => {
     // deriveLotStatus intentionally has no concept of "cancelled": that's
     // lots.status_override in the DB, layered on top of this derivation.
     const status = deriveLotStatus({

@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,10 +16,12 @@ export function LotDetailSheet({
   lot,
   open,
   onOpenChange,
+  onLocateOnMap,
 }: {
   lot: MapLot | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onLocateOnMap?: (lot: MapLot) => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -55,6 +58,16 @@ export function LotDetailSheet({
                 <div className="rounded-2xl border border-dashed border-hairline p-4 text-sm text-muted-foreground">
                   This lot is not currently assigned to a client.
                 </div>
+              )}
+
+              {onLocateOnMap && (
+                <button
+                  onClick={() => onLocateOnMap(lot)}
+                  className="flex items-center justify-center gap-2 rounded-full border border-hairline px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
+                >
+                  <MapPin className="size-4" strokeWidth={2} />
+                  Locate on real map
+                </button>
               )}
             </div>
           </>

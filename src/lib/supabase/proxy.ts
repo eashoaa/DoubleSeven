@@ -4,12 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Refreshes the Supabase auth session on every request and redirects
  * unauthenticated users away from the dashboard. Next.js 16 renamed
- * `middleware.ts` to `proxy.ts` (see AGENTS.md) — this is that file's logic.
+ * `middleware.ts` to `proxy.ts` (see AGENTS.md): this is that file's logic.
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  // No Supabase project wired up yet (Phase 0) — skip auth enforcement
+  // No Supabase project wired up yet (Phase 0): skip auth enforcement
   // rather than crash every request. Phase 1 auth work removes this guard.
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return response;

@@ -1,5 +1,8 @@
 import { Wallet, Users, AlertTriangle, LandPlot, ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { Greeting } from "@/components/layout/greeting";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { SectionLink } from "@/components/dashboard/section-link";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -7,6 +10,8 @@ import { Money } from "@/components/shared/money";
 import { formatDate } from "@/lib/format";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { createClient } from "@/lib/supabase/server";
+import { getDevMasterlist, MASTERLIST_SNAPSHOT_DATE } from "@/lib/domain/dev-masterlist";
+import { listDefaultOverrides } from "@/lib/server/local-store";
 import type { LotStatus } from "@/types/domain";
 
 interface OverdueRow {
@@ -24,17 +29,50 @@ interface ActivityRow {
   ts: string;
 }
 
-async function getDashboardData() {
-  const empty = {
-    collectedThisMonthCentavos: 0,
-    activeClients: 0,
-    delinquentAccounts: 0,
-    occupiedLots: 0,
-    topOverdue: [] as OverdueRow[],
+/**
+ * Phase 0 fallback, sourced from the real 334-contract masterlist (see
+ * lib/domain/dev-masterlist.ts) rather than zeros. "Collected this month"
+ * is legitimately ₱0 unless the current month is the masterlist snapshot
+ * month (2026-05); there's no per-payment history in the source data,
+ * only a cumulative total as of the snapshot, so it isn't backfilled.
+ */
+async function getDevFallbackDashboardData() {
+  const { contracts: rawContracts, clients } = getDevMasterlist();
+  const overrides = await listDefaultOverrides();
+  const contracts = rawContracts.map((c) =>
+    overrides[c.id] ? { ...c, status: "defaulted" as LotStatus } : c
+  );
+  const now = new Date();
+  const snapshot = new Date(`${MASTERLIST_SNAPSHOT_DATE}T00:00:00Z`);
+  const collectedThisMonthCentavos =
+    now.getUTCFullYear() === snapshot.getUTCFullYear() && now.getUTCMonth() === snapshot.getUTCMonth()
+      ? contracts.reduce((sum, c) => sum + c.paidCents, 0)
+      : 0;
+
+  const overdue = contracts
+    .filter((c) => c.status === "delinquent" || c.status === "defaulted")
+    .sort((a, b) => (b.overdueDays ?? 0) - (a.overdueDays ?? 0))
+    .slice(0, 5)
+    .map((c) => ({
+      contractId: c.id,
+      clientName: c.clientName,
+      lotDisplayId: c.lotDisplayId,
+      status: c.status,
+      priceCents: c.priceCents,
+    }));
+
+  return {
+    collectedThisMonthCentavos,
+    activeClients: clients.length,
+    delinquentAccounts: contracts.filter((c) => c.status === "delinquent" || c.status === "defaulted").length,
+    occupiedLots: contracts.length,
+    topOverdue: overdue,
     recentActivity: [] as ActivityRow[],
   };
+}
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return empty;
+async function getDashboardData() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return getDevFallbackDashboardData();
 
   const supabase = await createClient();
   const monthStart = new Date();
@@ -84,7 +122,7 @@ async function getDashboardData() {
     return {
       contractId: row.id,
       clientName: client?.name ?? "Unknown client",
-      lotDisplayId: lot?.display_id ?? "—",
+      lotDisplayId: lot?.display_id ?? "-",
       status: row.status,
       priceCents: row.price_cents,
     };
@@ -115,36 +153,42 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-8">
       <Greeting firstName={firstName} />
 
+      <QuickActions />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Wallet}
           tone="indigo"
-          label="Collected this month"
+          labelKey="stat.collectedThisMonth"
           value={<Money centavos={stats.collectedThisMonthCentavos} />}
+          href="/collections"
         />
         <StatCard
           icon={Users}
           tone="violet"
-          label="Active clients"
+          labelKey="stat.activeClients"
           value={stats.activeClients}
+          href="/clients"
         />
         <StatCard
           icon={AlertTriangle}
           tone="amber"
-          label="Delinquent accounts"
+          labelKey="stat.delinquentAccounts"
           value={stats.delinquentAccounts}
+          href="/overdue"
         />
         <StatCard
           icon={LandPlot}
           tone="indigo"
-          label="Occupied lots"
+          labelKey="stat.occupiedLots"
           value={stats.occupiedLots}
+          href="/lots?status=occupied"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-hairline bg-card p-6">
-          <h2 className="text-sm font-semibold text-foreground">Top overdue accounts</h2>
+          <SectionLink href="/overdue" labelKey="dashboard.topOverdue" />
           {stats.topOverdue.length === 0 ? (
             <EmptyState
               icon={AlertTriangle}
@@ -154,15 +198,20 @@ export default async function DashboardPage() {
           ) : (
             <ul className="mt-4 flex flex-col divide-y divide-hairline">
               {stats.topOverdue.map((row) => (
-                <li key={row.contractId} className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{row.clientName}</div>
-                    <div className="text-xs text-muted-foreground">{row.lotDisplayId}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Money centavos={row.priceCents} className="text-sm text-muted-foreground" />
-                    <StatusBadge status={row.status} />
-                  </div>
+                <li key={row.contractId}>
+                  <Link
+                    href={`/clients?q=${encodeURIComponent(row.clientName)}`}
+                    className="-mx-2 flex items-center justify-between rounded-lg px-2 py-3 transition-colors hover:bg-accent/60"
+                  >
+                    <div>
+                      <div className="text-sm font-medium text-foreground">{row.clientName}</div>
+                      <div className="text-xs text-muted-foreground">{row.lotDisplayId}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Money centavos={row.priceCents} className="text-sm text-muted-foreground" />
+                      <StatusBadge status={row.status} />
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -170,7 +219,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-hairline bg-card p-6">
-          <h2 className="text-sm font-semibold text-foreground">Recent activity</h2>
+          <SectionLink href="/audit" labelKey="dashboard.recentActivity" />
           {stats.recentActivity.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
@@ -192,7 +241,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Status legend — kept visible while the map/report views are still Phase 2 stubs */}
+      {/* Status legend: kept visible while the map/report views are still Phase 2 stubs */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-hairline bg-card p-4">
         <StatusBadge status="available" />
         <StatusBadge status="reserved" />

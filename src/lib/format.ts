@@ -1,5 +1,5 @@
 /**
- * Money is always integer centavos (1/100 PHP) end-to-end — the prototype's
+ * Money is always integer centavos (1/100 PHP) end-to-end: the prototype's
  * float arithmetic produced values like `tp: 27055.199999999997` in real
  * client data. Convert to centavos once at the DB boundary and never back
  * to floats until display.

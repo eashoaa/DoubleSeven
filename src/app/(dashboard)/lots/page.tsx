@@ -12,11 +12,39 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
+import { getMergedLotStatusById } from "@/lib/domain/dev-masterlist";
+import { generateAllLots, SECTION_DEFINITIONS } from "../../../../scripts/seed/lot-geometry";
+import { suggestedLotPriceCents } from "@/lib/domain/pricing";
 import { SECTION_LABEL, type SectionCode } from "@/types/domain";
+import { PageSearchInput } from "@/components/shared/page-search-input";
+import Link from "next/link";
+import { FileSpreadsheet } from "lucide-react";
 import type { LotsRow } from "./types";
+import { PageHeader } from "@/components/layout/page-header";
+
+async function getDevFallbackLots(): Promise<LotsRow[]> {
+  const lotStatusById = await getMergedLotStatusById();
+  const sectionByCode = new Map(SECTION_DEFINITIONS.map((s) => [s.code, s]));
+  return generateAllLots().map((lot) => {
+    const section = sectionByCode.get(lot.section)!;
+    const live = lotStatusById.get(lot.displayId);
+    return {
+      id: lot.displayId,
+      displayId: lot.displayId,
+      section: lot.section,
+      tier: lot.tier,
+      status: live?.status ?? "available",
+      priceCents: suggestedLotPriceCents(
+        { priceMinCents: section.priceMinCents, priceMaxCents: section.priceMaxCents },
+        lot.tier
+      ),
+      clientName: live?.clientName ?? null,
+    };
+  });
+}
 
 async function getLots(): Promise<LotsRow[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return await getDevFallbackLots();
 
   const supabase = await createClient();
   const { data: lots } = await supabase
@@ -44,26 +72,53 @@ async function getLots(): Promise<LotsRow[]> {
   }));
 }
 
-export default async function LotsPage() {
-  const lots = await getLots();
+export default async function LotsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
+  const [{ q, status }, allLots] = await Promise.all([searchParams, getLots()]);
+  let lots = q
+    ? allLots.filter(
+        (l) =>
+          l.displayId.toLowerCase().includes(q.toLowerCase()) ||
+          (l.clientName ?? "").toLowerCase().includes(q.toLowerCase())
+      )
+    : allLots;
+  if (status === "occupied") {
+    lots = lots.filter((l) => l.status !== "available");
+  } else if (status) {
+    lots = lots.filter((l) => l.status === status);
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Lots &amp; Ledger</h1>
-        <p className="text-sm text-muted-foreground">
-          Every inventory unit, its current status, and who holds it.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader titleKey="page.lots.title" descriptionKey="page.lots.desc" />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/api/export/ledger"
+            className="flex items-center gap-2 rounded-full border border-hairline bg-white/70 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-white"
+          >
+            <FileSpreadsheet className="size-4" strokeWidth={2} />
+            Export ledger (.xlsx)
+          </Link>
+          <PageSearchInput basePath="/lots" defaultValue={q ?? ""} placeholder="Filter by lot or client…" />
+        </div>
       </div>
 
       {lots.length === 0 ? (
         <EmptyState
           icon={Rows3}
-          title="No inventory seeded yet"
-          description="Run scripts/seed-inventory.ts against your Supabase project to populate this list."
+          title={q ? `No lots matching "${q}"` : "No inventory seeded yet"}
+          description={
+            q
+              ? "Try a different lot number or client name."
+              : "Run scripts/seed-inventory.ts against your Supabase project to populate this list."
+          }
         />
       ) : (
-        <div className="rounded-2xl border border-hairline">
+        <div className="shadow-card rounded-2xl border border-hairline">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -100,7 +155,7 @@ export default async function LotsPage() {
                   <TableCell>
                     <StatusBadge status={lot.status} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{lot.clientName ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{lot.clientName ?? "-"}</TableCell>
                   <TableCell className="text-right">
                     <Money centavos={lot.priceCents} />
                   </TableCell>

@@ -12,7 +12,7 @@ describe("calculateCommissionCents", () => {
 });
 
 describe("allocatePayout", () => {
-  it("settles oldest transactions first — the prototype iterated lot-insertion order instead", () => {
+  it("settles oldest transactions first: the prototype iterated lot-insertion order instead", () => {
     const unpaid = [
       { id: "newest", amountCents: 1000, transactionDate: "2026-03-01" },
       { id: "oldest", amountCents: 1000, transactionDate: "2026-01-01" },

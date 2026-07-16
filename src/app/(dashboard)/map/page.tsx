@@ -5,31 +5,25 @@ import type { MapLot } from "@/components/map/types";
 import { Map as MapIcon } from "lucide-react";
 import { generateAllLots, SECTION_DEFINITIONS } from "../../../../scripts/seed/lot-geometry";
 import { suggestedLotPriceCents } from "@/lib/domain/pricing";
-import type { LotStatus } from "@/types/domain";
+import { getMergedLotStatusById } from "@/lib/domain/dev-masterlist";
+import { PageHeader } from "@/components/layout/page-header";
+import { LotTypesReference } from "@/components/map/lot-types-reference";
 
-const DEV_STATUS_CYCLE: LotStatus[] = [
-  "available",
-  "reserved",
-  "active",
-  "delinquent",
-  "defaulted",
-  "paid",
-];
-
-/** Phase 0 fallback — lets the map be reviewed before a Supabase project exists. */
-function getDevFallbackLots(): MapLot[] {
+/** Phase 0 fallback, sourced from the real masterlist (lib/domain/dev-masterlist.ts). */
+async function getDevFallbackLots(): Promise<MapLot[]> {
   const sectionByCode = new Map(SECTION_DEFINITIONS.map((s) => [s.code, s]));
-  return generateAllLots().map((lot, i) => {
+  const lotStatusById = await getMergedLotStatusById();
+  return generateAllLots().map((lot) => {
     const section = sectionByCode.get(lot.section)!;
-    const status = DEV_STATUS_CYCLE[i % DEV_STATUS_CYCLE.length];
+    const live = lotStatusById.get(lot.displayId);
     return {
       id: lot.displayId,
       displayId: lot.displayId,
       section: lot.section,
       tier: lot.tier,
-      status,
+      status: live?.status ?? "available",
       points: lot.points,
-      clientName: status === "available" || status === "reserved" ? null : `Client ${i + 1}`,
+      clientName: live?.clientName ?? null,
       priceCents: suggestedLotPriceCents(
         { priceMinCents: section.priceMinCents, priceMaxCents: section.priceMaxCents },
         lot.tier
@@ -39,7 +33,7 @@ function getDevFallbackLots(): MapLot[] {
 }
 
 async function getMapLots(): Promise<MapLot[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return getDevFallbackLots();
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return await getDevFallbackLots();
 
   const supabase = await createClient();
   const { data: lots } = await supabase
@@ -72,12 +66,7 @@ export default async function MapPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Park Map</h1>
-        <p className="text-sm text-muted-foreground">
-          The site plan, painted by status or by tier. Click a lot for details.
-        </p>
-      </div>
+      <PageHeader titleKey="page.map.title" descriptionKey="page.map.desc" />
 
       {lots.length === 0 ? (
         <EmptyState
@@ -88,6 +77,8 @@ export default async function MapPage() {
       ) : (
         <ParkMap lots={lots} />
       )}
+
+      <LotTypesReference />
     </div>
   );
 }

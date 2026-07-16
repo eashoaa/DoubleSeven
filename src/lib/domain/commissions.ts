@@ -21,7 +21,7 @@ export interface PayoutAllocation {
  * Allocates a payout amount against a set of unpaid commission_ledger rows,
  * oldest transaction first. Fixes two prototype bugs (recordPayout,
  * cemetery_dashboard.jsx ~3779-3807): it iterated `Object.entries(lots)`
- * (lot-insertion order — not chronological, so payouts didn't necessarily
+ * (lot-insertion order: not chronological, so payouts didn't necessarily
  * settle the oldest commissions first), and any leftover amount that didn't
  * evenly divide across commissions was just dropped with no record. Here
  * the leftover is returned explicitly so the caller can store/report it

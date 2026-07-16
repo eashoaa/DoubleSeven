@@ -25,7 +25,7 @@ export interface ScheduleItem {
 }
 
 /**
- * Total amount actually payable once interest/markup is applied — decision
+ * Total amount actually payable once interest/markup is applied: decision
  * #9 (model interest/markup explicitly so contract totals reconcile with
  * the masterlist). A flat markup over the financed principal, not compound
  * monthly interest: the masterlist's own numbers back-derive cleanly this
@@ -39,7 +39,7 @@ export function computeTotalPayableCents(
 }
 
 /**
- * Inverse of computeTotalPayableCents — used by the masterlist migration to
+ * Inverse of computeTotalPayableCents: used by the masterlist migration to
  * back-derive each real contract's interest rate from `ma * tm` vs `p`,
  * since the source data has no explicit rate field.
  */

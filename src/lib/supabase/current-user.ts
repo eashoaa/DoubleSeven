@@ -6,7 +6,7 @@ import type { Role } from "@/lib/permissions";
 // exists. Once NEXT_PUBLIC_SUPABASE_URL is set, proxy.ts already redirects
 // unauthenticated requests to /login, so reaching a page that calls this
 // means a real session exists.
-const DEV_FALLBACK_USER = { id: "dev", name: "Rafa Santos", role: "admin" as Role };
+const DEV_FALLBACK_USER = { id: "dev", name: "Johann Tan", role: "admin" as Role };
 
 export async function getCurrentUser(): Promise<{ id: string; name: string; role: Role }> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

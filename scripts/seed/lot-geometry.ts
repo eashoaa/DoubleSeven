@@ -1,4 +1,10 @@
 import type { SectionCode, Tier } from "@/types/domain";
+import {
+  GARDEN_LOT_LAYOUT,
+  LAWN_LOT_LAYOUT,
+  COMMUNITY_VAULT_LAYOUT,
+  type SectionLayout,
+} from "@/lib/domain/lot-layouts";
 
 /**
  * Ported from the prototype's generateLawnLots()/generateGardenLots()/etc.
@@ -84,19 +90,41 @@ function fromBlocks(section: SectionCode, prefix: string, blocks: GridBlock[]): 
   return out;
 }
 
+/**
+ * Flattens a real, blueprint-transcribed SectionLayout (see
+ * src/lib/domain/lot-layouts.ts) into GeneratedLot[]. These lots carry no
+ * pixel geometry — the interactive "Digital" map view renders them from
+ * the layout directly, by displayId, not by polygon — so points/centroid
+ * are left empty. row/col record each cell's position within its block
+ * purely for reference; nothing currently reads them.
+ */
+function fromLayout(layout: SectionLayout): GeneratedLot[] {
+  const lots: GeneratedLot[] = [];
+  for (const block of layout.blocks) {
+    block.rows.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        lots.push({
+          section: layout.code,
+          tier: cell.tier,
+          seq: lots.length + 1,
+          displayId: cell.id,
+          row: r,
+          col: c,
+          points: [],
+          centroid: [0, 0],
+        });
+      });
+    });
+  }
+  return lots;
+}
+
 export function generateLawnLots(): GeneratedLot[] {
-  return fromBlocks("ll", "LL", [
-    { tier: "regular", startX: 788, startY: 180, cols: 11, rows: 7, cellW: 46, cellH: 40, count: 67 },
-    { tier: "premium", startX: 1088, startY: 468, cols: 5, rows: 10, cellW: 40, cellH: 25, count: 48 },
-    { tier: "prime", startX: 1300, startY: 468, cols: 5, rows: 10, cellW: 42, cellH: 25, count: 48 },
-  ]);
+  return fromLayout(LAWN_LOT_LAYOUT);
 }
 
 export function generateGardenLots(): GeneratedLot[] {
-  return fromBlocks("gl", "GL", [
-    { tier: "regular", startX: 1035, startY: 840, cols: 5, rows: 6, cellW: 42, cellH: 45, count: 26 },
-    { tier: "premium", startX: 1262, startY: 840, cols: 5, rows: 6, cellW: 42, cellH: 45, count: 26 },
-  ]);
+  return fromLayout(GARDEN_LOT_LAYOUT);
 }
 
 export function generateFamilyEstates(): GeneratedLot[] {
@@ -112,9 +140,7 @@ export function generateCourtEstates(): GeneratedLot[] {
 }
 
 export function generateCommunityVaults(): GeneratedLot[] {
-  return fromBlocks("cv", "CV", [
-    { tier: "regular", startX: 1155, startY: 90, cols: 22, rows: 3, cellW: 16, cellH: 18, count: 65, gap: 2 },
-  ]);
+  return fromLayout(COMMUNITY_VAULT_LAYOUT);
 }
 
 export function generateOssuary(): GeneratedLot[] {

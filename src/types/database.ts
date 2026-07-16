@@ -1,6 +1,6 @@
 // Hand-authored to match supabase/migrations exactly, in the shape
 // `supabase gen types typescript` produces. No live Supabase project exists
-// yet to generate from — once one does, regenerate with:
+// yet to generate from: once one does, regenerate with:
 //   npx supabase gen types typescript --project-id <ref> > src/types/database.ts
 // and diff against this file before trusting the replacement.
 

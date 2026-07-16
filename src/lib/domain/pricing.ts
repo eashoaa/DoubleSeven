@@ -1,7 +1,7 @@
 import { TIER_MULTIPLIER, type Tier } from "@/types/domain";
 
 /**
- * The single canonical pricing function — the prototype had three
+ * The single canonical pricing function: the prototype had three
  * divergent paths (seed's tier multiplier, the masterlist's raw override,
  * and `assignNewClient`'s tier-blind average) that could produce three
  * different prices for the same section+tier. This always applies the tier

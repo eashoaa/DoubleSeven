@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Phase 0 local data store (server/local-store.ts) — real writes made
+# through the app before a Supabase project exists. Never commit real
+# client/financial data or uploaded receipts.
+/.local-data/
+
 # vercel
 .vercel
 

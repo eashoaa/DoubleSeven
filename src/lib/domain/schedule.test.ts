@@ -5,7 +5,7 @@ import {
   generateInstallmentSchedule,
 } from "./schedule";
 
-describe("golden case — masterlist reconciliation", () => {
+describe("golden case: masterlist reconciliation", () => {
   // The plan's own verification case: ₱50,000 price, 60 months, ₱923.75/mo
   // must reconcile to ₱55,425 total (55,425 = 923.75 * 60).
   const priceCents = 5_000_000; // ₱50,000
@@ -37,7 +37,7 @@ describe("golden case — masterlist reconciliation", () => {
 describe("quarterly/annual under-collection bug (fixed)", () => {
   // The prototype computed `monthlyAmount = principal / termMonths` and
   // reused that flat rate as `due` for every installment regardless of
-  // cadence — a quarterly plan only ever scheduled ~33% of principal, an
+  // cadence: a quarterly plan only ever scheduled ~33% of principal, an
   // annual plan ~8.3%. Here every cadence must collect the full total.
   const base = {
     priceCents: 3_600_000,
@@ -78,7 +78,7 @@ describe("rounding", () => {
     });
     const total = schedule.reduce((s, i) => s + i.dueCents, 0);
     expect(total).toBe(1_000_000);
-    // 1,000,000 / 12 doesn't divide evenly — confirm the remainder landed
+    // 1,000,000 / 12 doesn't divide evenly: confirm the remainder landed
     // somewhere rather than being lost.
     const amounts = new Set(schedule.map((i) => i.dueCents));
     expect(amounts.size).toBeGreaterThan(0);

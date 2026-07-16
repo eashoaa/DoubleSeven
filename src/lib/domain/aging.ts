@@ -17,7 +17,7 @@ export const AGING_BUCKET_LABEL: Record<AgingBucketKey, string> = {
 
 /**
  * Standard AR aging granularity (finer than the 60/180 status cutoffs, which
- * is fine for a report — the bug being fixed is that the prototype derived
+ * is fine for a report: the bug being fixed is that the prototype derived
  * this from a *different* reference date than status did (last payment vs.
  * due date), not the bucket boundaries themselves. Both now go through
  * daysOverdueOnNextUnpaidInstallment.
@@ -49,7 +49,7 @@ export interface AgingRow {
 /**
  * One row per contract that still has an outstanding balance and is
  * currently overdue (daysOverdue > 0). Contracts that are paid off, or
- * current on their schedule, are excluded — mirroring the prototype's
+ * current on their schedule, are excluded: mirroring the prototype's
  * "only show accounts that actually owe something" intent, but keyed off
  * the same due-date logic as status derivation.
  */

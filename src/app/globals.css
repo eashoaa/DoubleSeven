@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --font-serif: var(--font-serif);
@@ -84,7 +84,7 @@
 }
 
 :root {
-  --background: #eef2fb;
+  --background: #e0f2fe;
   --foreground: #16181d;
   --card: #ffffff;
   --card-foreground: #16181d;
@@ -101,17 +101,23 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #eceef3;
   --input: #eceef3;
-  --ring: #6366f1;
-  --chart-1: #6366f1;
+  --ring: #4f46e5;
+  --chart-1: #4f46e5;
   --chart-2: #34d399;
   --chart-3: #fbbf24;
   --chart-4: #f87171;
   --chart-5: #818cf8;
   --radius: 0.9rem;
 
-  /* KlaroNotes wash + surface */
-  --wash-start: #e8eefc;
-  --wash-end: #eef2fb;
+  /* KlaroNotes wash: white at the bottom fading to a muted steel blue at
+     the top, capped partway through that blue (not the full #71a3c1
+     saturation) so the top of the page stays soft, not dark. Colors and
+     --wash-split are user-adjustable from Settings (see
+     lib/theme/wash-settings.tsx), which overrides these via inline styles
+     on :root; these are just the defaults for first paint / no-JS. */
+  --wash-start: #ffffff;
+  --wash-end: #c9dfec;
+  --wash-split: 0%;
   --surface: #ffffff;
   --hairline: #eceef3;
 
@@ -124,7 +130,7 @@
   --sidebar-border: #eceef3;
   --sidebar-ring: #6366f1;
 
-  /* Status ramp — functional data, not decoration. WCAG-checked text-on-bg pairs. */
+  /* Status ramp: functional data, not decoration. WCAG-checked text-on-bg pairs. */
   --status-available-bg: #f1f5f9;
   --status-available-fg: #475569;
   --status-available-map: #cbd5e1;
@@ -147,7 +153,7 @@
   --status-paid-fg: #3730a3;
   --status-paid-map: #818cf8;
 
-  /* Tier ramp — matches the printed sales maps staff already use */
+  /* Tier ramp: matches the printed sales maps staff already use */
   --tier-prime: #ef4444;
   --tier-premium: #eab308;
   --tier-regular: #3b82f6;
@@ -186,8 +192,8 @@
   --chart-4: #f87171;
   --chart-5: #6366f1;
 
-  --wash-start: #0b0c12;
-  --wash-end: #12131b;
+  --wash-start: #0a0f0c;
+  --wash-end: #13181a;
   --surface: #16181f;
   --hairline: color-mix(in oklab, #eceef3 12%, transparent);
 
@@ -240,7 +246,12 @@
   }
   body {
     @apply text-foreground;
-    background: linear-gradient(160deg, var(--wash-start), var(--wash-end));
+    background: linear-gradient(
+      to top,
+      var(--wash-start) 0%,
+      var(--wash-start) var(--wash-split),
+      var(--wash-end) 100%
+    );
     background-attachment: fixed;
   }
   html {
@@ -253,4 +264,45 @@
     font-family: var(--font-serif);
     font-style: italic;
   }
+
+  /* KlaroNotes-strength card shadow: the flat 1px border alone reads too
+     quiet next to the reference; this gives cards a real, floating, 3D
+     depth against the wash instead of a barely-there hint of a shadow. */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.06),
+      0 4px 8px -2px rgba(16, 24, 40, 0.1),
+      0 16px 32px -8px rgba(16, 24, 40, 0.22),
+      0 32px 64px -16px rgba(16, 24, 40, 0.18);
+  }
+
+  /* Refined embossed look for the DoubleSeven. wordmark: a crisp hairline
+     highlight plus a tight, controlled shadow, not a soft puffy blur, so it
+     reads as an engraved wordmark rather than a drop-shadow effect. */
+  .logo-3d {
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85),
+      0 1px 1px rgba(16, 24, 40, 0.28),
+      0 4px 10px rgba(16, 24, 40, 0.1);
+    letter-spacing: -0.01em;
+  }
+
+  /* The initial "D" gets its own quiet accent treatment, the way a
+     wordmark's lead letter is often set apart, without changing the
+     typeface. */
+  .logo-initial {
+    color: var(--ring);
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85),
+      0 1px 2px rgba(79, 70, 229, 0.35),
+      0 4px 10px rgba(79, 70, 229, 0.18);
+  }
+}
+
+.dark .shadow-card {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 4px 8px -2px rgba(0, 0, 0, 0.35),
+    0 16px 32px -8px rgba(0, 0, 0, 0.55),
+    0 32px 64px -16px rgba(0, 0, 0, 0.45);
 }

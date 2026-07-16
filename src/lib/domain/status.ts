@@ -17,7 +17,7 @@ export interface StatusInstallment {
  * Net amount applied to the lot's price. interment/maintenance fees are
  * separate line items, not part of the lot payoff; refunds subtract. Mirror
  * of the SQL sum in recompute_contract_status() (supabase/migrations
- * 20260714000006) — keep the two in sync.
+ * 20260714000006): keep the two in sync.
  */
 export function netPaidCents(transactions: StatusTransaction[]): number {
   let total = 0;
@@ -35,7 +35,7 @@ function startOfDay(d: Date): Date {
 }
 
 /**
- * The earliest installment whose cumulative due exceeds what's been paid —
+ * The earliest installment whose cumulative due exceeds what's been paid:
  * the first installment not yet fully covered. Returns null once payments
  * cover every scheduled installment.
  */
@@ -56,7 +56,7 @@ export function findNextUnpaidInstallment(
  * Days overdue on the next unpaid installment, or null if there is none (all
  * installments are covered, or there simply are none). Used by both status
  * derivation and aging reports so the two always agree on "how overdue" a
- * contract is — the prototype's aging table bucketed off the last *payment*
+ * contract is: the prototype's aging table bucketed off the last *payment*
  * date while its status used a different day-count entirely, so a client
  * could show one urgency in the aging report and a different one on the map.
  */
@@ -76,7 +76,7 @@ export function daysOverdueOnNextUnpaidInstallment(
  * Due-date based delinquency (decision #8), replacing the prototype's "days
  * since last payment" heuristic (recomputeStatus, cemetery_dashboard.jsx
  * ~line 379). Thresholds (60/180 days overdue) intentionally match the
- * prototype's cutoffs — only the reference date changes, from "last
+ * prototype's cutoffs: only the reference date changes, from "last
  * payment" to "next unpaid due date". Mirror of the SQL function
  * recompute_contract_status(); keep the two in sync.
  */

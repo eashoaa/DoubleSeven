@@ -13,6 +13,7 @@ import { ApprovalActions } from "@/components/approvals/approval-actions";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { PageHeader } from "@/components/layout/page-header";
 
 interface VerificationRow {
   id: string;
@@ -57,14 +58,10 @@ export default async function PendingApprovalsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Approvals</h1>
-        <p className="text-sm text-muted-foreground">
-          {canResolve
-            ? "Payments and edits submitted by staff, waiting on your review."
-            : "Submissions you've made, and whether they've been reviewed."}
-        </p>
-      </div>
+      <PageHeader
+        titleKey="page.pending.title"
+        descriptionKey={canResolve ? "page.pending.desc.admin" : "page.pending.desc.staff"}
+      />
 
       {rows.length === 0 ? (
         <EmptyState
@@ -73,7 +70,7 @@ export default async function PendingApprovalsPage() {
           description="Payments recorded by marketing/accountant staff will land here for admin approval."
         />
       ) : (
-        <div className="rounded-2xl border border-hairline">
+        <div className="shadow-card rounded-2xl border border-hairline">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">

@@ -1,6 +1,6 @@
 /**
  * Mirrors the prototype's ROLES matrix (cemetery_dashboard.jsx lines 99-248).
- * UX-only — hides/shows nav and controls. The real security boundary is
+ * UX-only: hides/shows nav and controls. The real security boundary is
  * Postgres RLS (supabase/migrations); never trust this module for access
  * control decisions that matter.
  */
@@ -42,7 +42,9 @@ export type NavId =
   | "audit"
   | "trash"
   | "settings"
-  | "pending";
+  | "pending"
+  | "overdue"
+  | "faq";
 
 interface RoleDef {
   label: string;
@@ -90,6 +92,8 @@ export const ROLES: Record<Role, RoleDef> = {
       "trash",
       "settings",
       "pending",
+      "overdue",
+      "faq",
     ],
     can: {
       ...allFalse,
@@ -113,7 +117,7 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   accountant: {
     label: "Accountant",
-    nav: ["home", "collections", "cash", "ledger", "pending"],
+    nav: ["home", "collections", "cash", "ledger", "pending", "overdue", "expenses", "settings", "faq"],
     can: {
       ...allFalse,
       viewAllFinancials: true,
@@ -125,7 +129,7 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   marketing: {
     label: "Marketing",
-    nav: ["home", "map", "clients", "pending"],
+    nav: ["home", "map", "clients", "pending", "overdue", "settings", "faq"],
     can: {
       ...allFalse,
       recordPayment: true,
@@ -137,12 +141,12 @@ export const ROLES: Record<Role, RoleDef> = {
   },
   staff: {
     label: "Staff",
-    nav: ["home", "map", "clients"],
+    nav: ["home", "map", "clients", "settings", "faq"],
     can: { ...allFalse },
   },
   agent: {
     label: "Sales Agent",
-    nav: ["home", "map", "clients"],
+    nav: ["home", "map", "clients", "settings", "faq"],
     can: { ...allFalse },
   },
 };

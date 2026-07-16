@@ -1,4 +1,5 @@
-import { Users } from "lucide-react";
+import { FileText, Users } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
@@ -10,6 +11,13 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getDevMasterlist } from "@/lib/domain/dev-masterlist";
+import { listLocalClients, listLocalContracts, getContactOverrides } from "@/lib/server/local-store";
+import contractPdfs from "../../../../scripts/data/contract-pdfs.json";
+import { PageSearchInput } from "@/components/shared/page-search-input";
+import { PageHeader } from "@/components/layout/page-header";
+import { ClientHistoryDialog } from "@/components/clients/client-history-dialog";
+import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
 
 interface ClientRow {
   id: string;
@@ -21,7 +29,28 @@ interface ClientRow {
 }
 
 async function getClients(): Promise<ClientRow[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const { clients } = getDevMasterlist();
+    const local = await listLocalClients();
+    const [localContracts, overrides] = await Promise.all([listLocalContracts(), getContactOverrides()]);
+
+    const localContractCountByClient = new Map<string, number>();
+    for (const c of localContracts) {
+      localContractCountByClient.set(c.clientId, (localContractCountByClient.get(c.clientId) ?? 0) + 1);
+    }
+
+    const merged: ClientRow[] = [
+      ...clients.map((c) => ({ ...c, contractCount: c.contractCount + (localContractCountByClient.get(c.id) ?? 0) })),
+      ...local.map((c) => ({ ...c, contractCount: localContractCountByClient.get(c.id) ?? 0 })),
+    ];
+
+    return merged
+      .map((c) => {
+        const override = overrides[c.id];
+        return { ...c, contact: override?.contact ?? c.contact, email: override?.email ?? c.email };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   const supabase = await createClient();
   const { data: clients } = await supabase
@@ -48,26 +77,37 @@ async function getClients(): Promise<ClientRow[]> {
   }));
 }
 
-export default async function ClientsPage() {
-  const clients = await getClients();
+const CONTRACT_PDFS = contractPdfs as Record<string, string[]>;
+
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const [{ q }, clients] = await Promise.all([searchParams, getClients()]);
+  const filtered = q
+    ? clients.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
+    : clients;
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Clients</h1>
-        <p className="text-sm text-muted-foreground">
-          Everyone who owns or is reserving a lot at Heaven&apos;s Gate.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader titleKey="page.clients.title" descriptionKey="page.clients.desc" />
+        <PageSearchInput basePath="/clients" defaultValue={q ?? ""} placeholder="Filter by name…" />
       </div>
 
-      {clients.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No clients yet"
-          description="Clients created here, or migrated from the masterlist, will show up in this list."
+          title={q ? `No clients matching "${q}"` : "No clients yet"}
+          description={
+            q
+              ? "Try a different name."
+              : "Clients created here, or migrated from the masterlist, will show up in this list."
+          }
         />
       ) : (
-        <div className="rounded-2xl border border-hairline">
+        <div className="shadow-card rounded-2xl border border-hairline">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -83,23 +123,64 @@ export default async function ClientsPage() {
                 <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Contracts
                 </TableHead>
+                <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Documents
+                </TableHead>
+                <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  History
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium text-foreground">{client.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {client.contact ?? client.email ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(client.since)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {client.contractCount}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((client) => {
+                const pdfs = CONTRACT_PDFS[client.name] ?? [];
+                return (
+                  <TableRow key={client.id}>
+                    <TableCell className="font-medium text-foreground">{client.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>{client.contact ?? client.email ?? "-"}</span>
+                        <EditContactDialog
+                          clientId={client.id}
+                          clientName={client.name}
+                          contact={client.contact}
+                          email={client.email}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(client.since)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {client.contractCount}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {pdfs.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">Not on file</span>
+                      ) : (
+                        <div className="flex justify-end gap-2">
+                          {pdfs.map((filename) => (
+                            <Link
+                              key={filename}
+                              href={`/api/contracts/${encodeURIComponent(filename)}`}
+                              target="_blank"
+                              className="inline-flex items-center gap-1 rounded-full border border-hairline px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent"
+                            >
+                              <FileText className="size-3" strokeWidth={2} />
+                              View
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end">
+                        <ClientHistoryDialog clientId={client.id} clientName={client.name} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
