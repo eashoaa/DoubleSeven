@@ -104,3 +104,29 @@ export async function markDepositedAction(id: string) {
     .eq("id", id);
   revalidatePath("/collections");
 }
+
+export async function undoMarkDepositedAction(id: string) {
+  const supabase = await createClient();
+  await supabase.from("transactions").update({ deposited: false, deposit_date: null }).eq("id", id);
+  revalidatePath("/collections");
+}
+
+export interface ClientLot {
+  displayId: string;
+}
+
+/** Powers the Log Payment dialog's lot auto-fill once a client is picked. */
+export async function getClientLotsAction(clientId: string): Promise<ClientLot[]> {
+  if (!clientId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("contracts")
+    .select("lots(display_id)")
+    .eq("client_id", clientId)
+    .is("deleted_at", null);
+
+  return (data ?? [])
+    .map((row) => (row.lots as unknown as { display_id: string } | null)?.display_id)
+    .filter((displayId): displayId is string => !!displayId)
+    .map((displayId) => ({ displayId }));
+}

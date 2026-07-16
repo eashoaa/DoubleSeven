@@ -8,10 +8,12 @@ export function ClientCombobox({
   clients,
   name = "clientId",
   required,
+  onSelect,
 }: {
   clients: { id: string; name: string }[];
   name?: string;
   required?: boolean;
+  onSelect?: (client: { id: string; name: string }) => void;
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -35,6 +37,7 @@ export function ClientCombobox({
     setSelectedId(client.id);
     setQuery(client.name);
     setOpen(false);
+    onSelect?.(client);
   }
 
   return (

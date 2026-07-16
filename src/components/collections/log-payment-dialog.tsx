@@ -16,7 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientCombobox } from "@/components/shared/client-combobox";
 import { RequiredLegend } from "@/components/shared/required-legend";
-import { recordCollectionAction, type RecordCollectionState } from "@/server/actions/collections";
+import {
+  recordCollectionAction,
+  getClientLotsAction,
+  type RecordCollectionState,
+  type ClientLot,
+} from "@/server/actions/collections";
 
 const selectClass =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -49,7 +54,19 @@ export function LogPaymentDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [clientLots, setClientLots] = useState<ClientLot[] | null>(null);
+  const [lotDisplayId, setLotDisplayId] = useState("");
   const typeOptions = restrictToReservation ? MARKETING_TYPES : ALL_TYPES;
+
+  function handleClientSelect(client: { id: string; name: string }) {
+    setClientLots(null);
+    setLotDisplayId("");
+    startTransition(async () => {
+      const lots = await getClientLotsAction(client.id);
+      setClientLots(lots);
+      if (lots.length === 1) setLotDisplayId(lots[0].displayId);
+    });
+  }
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -58,6 +75,8 @@ export function LogPaymentDialog({
       if (result.success) {
         toast.success("Payment logged");
         setOpen(false);
+        setClientLots(null);
+        setLotDisplayId("");
       } else {
         setError(result.error);
       }
@@ -85,13 +104,43 @@ export function LogPaymentDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label required>Client</Label>
-            <ClientCombobox clients={clients} required />
+            <ClientCombobox clients={clients} required onSelect={handleClientSelect} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="lotDisplayId" required>Lot</Label>
-              <Input id="lotDisplayId" name="lotDisplayId" placeholder="A50" required />
+              {clientLots && clientLots.length > 1 ? (
+                <select
+                  id="lotDisplayId"
+                  name="lotDisplayId"
+                  required
+                  value={lotDisplayId}
+                  onChange={(e) => setLotDisplayId(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="" disabled>
+                    Select a lot…
+                  </option>
+                  {clientLots.map((l) => (
+                    <option key={l.displayId} value={l.displayId}>
+                      {l.displayId}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="lotDisplayId"
+                  name="lotDisplayId"
+                  placeholder="A50"
+                  required
+                  value={lotDisplayId}
+                  onChange={(e) => setLotDisplayId(e.target.value)}
+                />
+              )}
+              {clientLots && clientLots.length > 1 ? (
+                <p className="text-xs text-muted-foreground">This client has {clientLots.length} lots — pick the right one.</p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="type">Type</Label>

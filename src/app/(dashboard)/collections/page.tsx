@@ -20,7 +20,61 @@ import { getDevMasterlist, MASTERLIST_SNAPSHOT_DATE } from "@/lib/domain/dev-mas
 import { listCollections, listLocalClients } from "@/lib/server/local-store";
 import { LogPaymentDialog } from "@/components/collections/log-payment-dialog";
 import { MarkDepositedButton } from "@/components/collections/mark-deposited-button";
+import { CollectionsTrendChart } from "@/components/collections/collections-trend-chart";
 import { PageHeader } from "@/components/layout/page-header";
+
+type Period = "30d" | "month" | "3m" | "year" | "all";
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "year", label: "This year" },
+  { value: "3m", label: "Last 3 months" },
+  { value: "month", label: "This month" },
+  { value: "30d", label: "Last 30 days" },
+];
+
+/** Returns the inclusive start date (YYYY-MM-DD) for a period, or null for "all". */
+function periodStart(period: Period, today: Date): string | null {
+  const d = new Date(today);
+  switch (period) {
+    case "30d":
+      d.setDate(d.getDate() - 30);
+      break;
+    case "month":
+      d.setDate(1);
+      break;
+    case "3m":
+      d.setMonth(d.getMonth() - 3);
+      break;
+    case "year":
+      d.setMonth(0, 1);
+      break;
+    case "all":
+    default:
+      return null;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/** Collected total per month for the trailing 12 months, independent of the period filter — the "traction" view. */
+function monthlyTrend(rows: CollectionRow[]) {
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+      totalCents: 0,
+    };
+  });
+  const byKey = new Map(months.map((m) => [m.key, m]));
+  for (const r of rows) {
+    if (r.voided) continue;
+    const bucket = byKey.get(r.paidAt.slice(0, 7));
+    if (bucket) bucket.totalCents += r.netCents;
+  }
+  return months;
+}
 
 interface CollectionRow {
   id: string;
@@ -88,7 +142,7 @@ async function getCollections(): Promise<CollectionRow[]> {
       "id, paid_at, type, gross_cents, discount_cents, method, voided, deposited, receipt_url, clients(name), lots(display_id)"
     )
     .order("paid_at", { ascending: false })
-    .limit(50);
+    .limit(5000);
 
   if (!data) return [];
 
@@ -122,15 +176,30 @@ async function getClientOptions(): Promise<{ id: string; name: string }[]> {
   return data ?? [];
 }
 
-export default async function CollectionsPage() {
-  const [rows, clientOptions, user] = await Promise.all([
+export default async function CollectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const [{ period: periodParam }, allRows, clientOptions, user] = await Promise.all([
+    searchParams,
     getCollections(),
     getClientOptions(),
     getCurrentUser(),
   ]);
   const requireReceipt = can(user.role, "requireReceiptPhoto");
 
-  const undeposited = rows.filter((r) => !r.deposited && !r.voided);
+  const period: Period = PERIODS.some((p) => p.value === periodParam) ? (periodParam as Period) : "all";
+  const startDate = periodStart(period, new Date());
+  const rows = startDate ? allRows.filter((r) => r.paidAt >= startDate) : allRows;
+
+  const trend = monthlyTrend(allRows);
+
+  // opening_balance rows are the one-time masterlist migration snapshot, not
+  // new cash that needs depositing — they default to deposited=false since
+  // the migration has no real deposit-date data, which would otherwise make
+  // this stat wildly overstate real undeposited cash.
+  const undeposited = rows.filter((r) => !r.deposited && !r.voided && r.type !== "opening_balance");
   const undepositedTotal = undeposited.reduce((sum, r) => sum + r.netCents, 0);
   const collectedTotal = rows.filter((r) => !r.voided).reduce((sum, r) => sum + r.netCents, 0);
 
@@ -154,11 +223,28 @@ export default async function CollectionsPage() {
         </div>
       </div>
 
+      <CollectionsTrendChart data={trend} />
+
+      <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-hairline bg-card p-1 self-start">
+        {PERIODS.map((p) => (
+          <Link
+            key={p.value}
+            href={p.value === "all" ? "/collections" : `/collections?period=${p.value}`}
+            className={
+              "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors " +
+              (period === p.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")
+            }
+          >
+            {p.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard
           icon={Wallet}
           tone="indigo"
-          label="Total collected on record"
+          label={`Total collected — ${PERIODS.find((p) => p.value === period)!.label.toLowerCase()}`}
           value={<Money centavos={collectedTotal} />}
         />
         <StatCard
@@ -241,10 +327,10 @@ export default async function CollectionsPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {row.deposited ? (
-                      <span className="text-xs text-muted-foreground">Deposited</span>
+                    {row.type === "opening_balance" ? (
+                      <span className="text-xs text-muted-foreground">Migrated</span>
                     ) : (
-                      <MarkDepositedButton id={row.id} />
+                      <MarkDepositedButton id={row.id} deposited={row.deposited} />
                     )}
                   </TableCell>
                   <TableCell className="text-right">
