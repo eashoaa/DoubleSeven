@@ -71,6 +71,7 @@ export function NavItemRow({ item, collapsed }: { item: NavItemType; collapsed: 
   const link = (
     <Link
       href={item.href}
+      prefetch={false}
       onClick={() => {
         if (hasChildren) setExpanded((v) => !v);
       }}
@@ -113,6 +114,7 @@ export function NavItemRow({ item, collapsed }: { item: NavItemType; collapsed: 
                 <Link
                   key={child.id}
                   href={child.href}
+                  prefetch={false}
                   className={cn(
                     "nav-item flex items-center gap-2 rounded-full px-2.5 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-white/60",
                     childActiveNow && "bg-white text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06)] hover:bg-white"

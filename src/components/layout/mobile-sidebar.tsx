@@ -48,7 +48,7 @@ export function MobileSidebar({ role }: { role: Role }) {
         }`}
       >
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex flex-col leading-none tracking-tight" onClick={() => setMobileMenuOpen(false)}>
+          <Link href="/" prefetch={false} className="flex flex-col leading-none tracking-tight" onClick={() => setMobileMenuOpen(false)}>
             <span className="text-2xl font-extrabold whitespace-nowrap text-foreground">DoubleSeven.</span>
             <span className="mt-1 text-sm font-bold whitespace-nowrap text-foreground/60">Heaven&apos;s Gate</span>
           </Link>

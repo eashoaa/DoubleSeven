@@ -96,7 +96,7 @@ export function Sidebar({ role }: { role: Role }) {
       style={{ width: expandedWidth }}
       className="sticky top-2 hidden max-h-[calc(100vh-1rem)] shrink-0 flex-col gap-3 self-start overflow-hidden px-3 py-4 md:flex"
     >
-      <Link href="/" className="flex h-[70px] shrink-0 items-end pb-2">
+      <Link href="/" prefetch={false} className="flex h-[70px] shrink-0 items-end pb-2">
         <div className="logo-clip flex flex-col justify-end overflow-hidden leading-none tracking-tight">
           <div className="logo-fade flex flex-col">
             <span className="logo-3d pr-1 text-3xl font-extrabold whitespace-nowrap text-foreground">
