@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { createClientAction, type CreateClientState } from "@/server/actions/clients";
 import { getAvailableLotsAction, type AvailableLot } from "@/server/actions/lots";
 import { getAgentsAction } from "@/server/actions/agents";
-import type { LocalAgent } from "@/lib/server/local-store";
+import type { Agent } from "@/server/actions/agents";
 import { SplitLetters } from "@/components/layout/split-letters";
 import { RequiredLegend } from "@/components/shared/required-legend";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -33,7 +33,7 @@ export function NewClientDialog({ className, children }: { className?: string; c
   const [pending, startTransition] = useTransition();
   const [lots, setLots] = useState<AvailableLot[] | null>(null);
   const [selectedLot, setSelectedLot] = useState<AvailableLot | null>(null);
-  const [agents, setAgents] = useState<LocalAgent[] | null>(null);
+  const [agents, setAgents] = useState<Agent[] | null>(null);
 
   function handleOpen() {
     setOpen(true);
@@ -172,7 +172,7 @@ export function NewClientDialog({ className, children }: { className?: string; c
                 <option value="">No agent / not tracked</option>
                 {agents?.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} ({a.commissionRatePercent}%)
+                    {a.name} ({a.commission_rate}%)
                   </option>
                 ))}
               </select>

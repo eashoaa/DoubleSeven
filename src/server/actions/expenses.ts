@@ -1,8 +1,9 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
-import { recordExpense, saveReceipt } from "@/lib/server/local-store";
+import { createClient } from "@/lib/supabase/server";
 
 export interface RecordExpenseState {
   error: string | null;
@@ -24,27 +25,34 @@ export async function recordExpenseAction(
   }
 
   const user = await getCurrentUser();
+  const supabase = await createClient();
 
-  let receiptId: string | null = null;
+  const id = randomUUID();
+  let receiptPath: string | null = null;
   if (receiptFile && receiptFile.size > 0) {
-    const buffer = Buffer.from(await receiptFile.arrayBuffer());
-    const meta = await saveReceipt({
-      filename: receiptFile.name,
-      mimeType: receiptFile.type || "application/octet-stream",
-      data: buffer,
-      uploadedBy: user.name,
-    });
-    receiptId = meta.id;
+    const ext = receiptFile.name.split(".").pop() || "jpg";
+    receiptPath = `expenses/${id}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("receipts")
+      .upload(receiptPath, receiptFile, { contentType: receiptFile.type || "application/octet-stream" });
+    if (uploadError) {
+      return { error: `Failed to upload receipt: ${uploadError.message}`, success: false };
+    }
   }
 
-  await recordExpense({
+  const { error } = await supabase.from("expenses").insert({
+    id,
     category: category || "Uncategorized",
     description,
-    amountCents: Math.round(amountPesos * 100),
-    paidFrom,
-    receiptId,
-    recordedBy: user.name,
+    amount_cents: Math.round(amountPesos * 100),
+    paid_from: paidFrom,
+    receipt_path: receiptPath,
+    recorded_by: user.id,
   });
+
+  if (error) {
+    return { error: error.message, success: false };
+  }
 
   revalidatePath("/expenses");
   return { error: null, success: true };

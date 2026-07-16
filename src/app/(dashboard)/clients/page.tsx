@@ -12,16 +12,13 @@ import { ClickableRow } from "@/components/shared/clickable-row";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getDevMasterlist } from "@/lib/domain/dev-masterlist";
-import {
-  listLocalClients,
-  listLocalContracts,
-  getContactOverrides,
-  getClientAgentTags,
-} from "@/lib/server/local-store";
+import { listLocalClients, listLocalContracts, getContactOverrides } from "@/lib/server/local-store";
 import { PageSearchInput } from "@/components/shared/page-search-input";
 import { PageHeader } from "@/components/layout/page-header";
 import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
 import { AssignAgentDialog } from "@/components/clients/assign-agent-dialog";
+import { getCurrentUser } from "@/lib/supabase/current-user";
+import { can } from "@/lib/permissions";
 
 interface ClientRow {
   id: string;
@@ -34,8 +31,6 @@ interface ClientRow {
 }
 
 async function getClients(): Promise<ClientRow[]> {
-  const agentTags = await getClientAgentTags();
-
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const { clients } = getDevMasterlist();
     const local = await listLocalClients();
@@ -62,7 +57,6 @@ async function getClients(): Promise<ClientRow[]> {
           ...c,
           contact: override?.contact ?? c.contact,
           email: override?.email ?? c.email,
-          agentName: agentTags[c.id]?.agentName ?? null,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -71,20 +65,23 @@ async function getClients(): Promise<ClientRow[]> {
   const supabase = await createClient();
   const [{ data: clients }, { data: contracts }] = await Promise.all([
     supabase.from("clients").select("id, name, contact, email, since").is("deleted_at", null).order("name"),
-    supabase.from("contracts").select("client_id").is("deleted_at", null),
+    supabase.from("contracts").select("client_id, agent_id, agents(name)").is("deleted_at", null),
   ]);
 
   if (!clients || clients.length === 0) return [];
 
   const contractCountByClient = new Map<string, number>();
+  const agentNameByClient = new Map<string, string>();
   for (const c of contracts ?? []) {
     contractCountByClient.set(c.client_id, (contractCountByClient.get(c.client_id) ?? 0) + 1);
+    const agent = c.agents as unknown as { name: string } | null;
+    if (agent?.name) agentNameByClient.set(c.client_id, agent.name);
   }
 
   return clients.map((c) => ({
     ...c,
     contractCount: contractCountByClient.get(c.id) ?? 0,
-    agentName: agentTags[c.id]?.agentName ?? null,
+    agentName: agentNameByClient.get(c.id) ?? null,
   }));
 }
 
@@ -93,7 +90,8 @@ export default async function ClientsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const [{ q }, clients] = await Promise.all([searchParams, getClients()]);
+  const [{ q }, clients, user] = await Promise.all([searchParams, getClients(), getCurrentUser()]);
+  const canAssignAgent = can(user.role, "manageAgents");
   const filtered = q
     ? clients.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
     : clients;
@@ -158,11 +156,13 @@ export default async function ClientsPage({
                   <TableCell className="text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <span>{client.agentName ?? "—"}</span>
-                      <AssignAgentDialog
-                        clientId={client.id}
-                        clientName={client.name}
-                        currentAgentName={client.agentName}
-                      />
+                      {canAssignAgent ? (
+                        <AssignAgentDialog
+                          clientId={client.id}
+                          clientName={client.name}
+                          currentAgentName={client.agentName}
+                        />
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">

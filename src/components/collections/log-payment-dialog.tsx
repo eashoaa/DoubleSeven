@@ -23,23 +23,36 @@ const selectClass =
 
 const initialState: RecordCollectionState = { error: null, success: false };
 
+// Matches the public.transaction_type enum — deliberately exhaustive (no
+// catch-all "other"), see 20260714000001_extensions_and_enums.sql.
+const ALL_TYPES = [
+  { value: "downpayment", label: "Downpayment" },
+  { value: "reservation", label: "Reservation" },
+  { value: "amortization", label: "Payment (installment)" },
+  { value: "spotcash", label: "Spot cash" },
+  { value: "discounted", label: "Discounted" },
+] as const;
+
+// RLS (transactions_insert) only allows marketing to record reservations —
+// mirror that here so it's a clear UI constraint, not a server rejection.
+const MARKETING_TYPES = ALL_TYPES.filter((t) => t.value === "reservation");
+
 export function LogPaymentDialog({
   clients,
   requireReceipt = false,
+  restrictToReservation = false,
 }: {
   clients: { id: string; name: string }[];
   requireReceipt?: boolean;
+  restrictToReservation?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const typeOptions = restrictToReservation ? MARKETING_TYPES : ALL_TYPES;
 
   function handleSubmit(formData: FormData) {
     setError(null);
-    const clientId = String(formData.get("clientId") ?? "");
-    const client = clients.find((c) => c.id === clientId);
-    if (client) formData.set("clientName", client.name);
-
     startTransition(async () => {
       const result = await recordCollectionAction(initialState, formData);
       if (result.success) {
@@ -77,16 +90,17 @@ export function LogPaymentDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="lotDisplayId">Lot (optional)</Label>
-              <Input id="lotDisplayId" name="lotDisplayId" placeholder="A50" />
+              <Label htmlFor="lotDisplayId" required>Lot</Label>
+              <Input id="lotDisplayId" name="lotDisplayId" placeholder="A50" required />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="type">Type</Label>
-              <select id="type" name="type" defaultValue="payment" className={selectClass}>
-                <option value="payment">Payment</option>
-                <option value="downpayment">Downpayment</option>
-                <option value="reservation">Reservation</option>
-                <option value="other">Other</option>
+              <select id="type" name="type" defaultValue={typeOptions[0].value} className={selectClass}>
+                {typeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -105,6 +119,17 @@ export function LogPaymentDialog({
                 <option value="gcash">GCash</option>
                 <option value="other">Other</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="discountPesos">Discount (₱)</Label>
+              <Input id="discountPesos" name="discountPesos" type="number" step="0.01" min="0" defaultValue={0} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="discountReason">Discount reason</Label>
+              <Input id="discountReason" name="discountReason" />
             </div>
           </div>
 

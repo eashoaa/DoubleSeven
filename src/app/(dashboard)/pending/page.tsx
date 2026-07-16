@@ -29,7 +29,7 @@ async function getPendingVerifications(): Promise<VerificationRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("pending_verifications")
-    .select("id, kind, status, created_at, submitted_by, profiles(full_name)")
+    .select("id, kind, status, created_at, submitted_by, profiles!pending_verifications_submitted_by_fkey(full_name)")
     .order("created_at", { ascending: false });
 
   if (!data) return [];

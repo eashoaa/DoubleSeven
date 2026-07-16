@@ -12,12 +12,47 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
-import { listExpenses } from "@/lib/server/local-store";
+import { createClient } from "@/lib/supabase/server";
 import { LogExpenseDialog } from "@/components/expenses/log-expense-dialog";
 import { PageHeader } from "@/components/layout/page-header";
 
+interface ExpenseRow {
+  id: string;
+  incurredAt: string;
+  category: string;
+  description: string;
+  amountCents: number;
+  paidFrom: string;
+  hasReceipt: boolean;
+  recordedBy: string;
+}
+
+async function getExpenses(): Promise<ExpenseRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("expenses")
+    .select("id, incurred_at, category, description, amount_cents, paid_from, receipt_path, profiles(full_name)")
+    .order("incurred_at", { ascending: false });
+
+  if (!data) return [];
+
+  return data.map((row) => {
+    const profile = row.profiles as unknown as { full_name: string } | null;
+    return {
+      id: row.id,
+      incurredAt: row.incurred_at,
+      category: row.category,
+      description: row.description,
+      amountCents: row.amount_cents,
+      paidFrom: row.paid_from,
+      hasReceipt: !!row.receipt_path,
+      recordedBy: profile?.full_name ?? "Unknown",
+    };
+  });
+}
+
 export default async function ExpensesPage() {
-  const expenses = (await listExpenses()).sort((a, b) => (a.incurredAt < b.incurredAt ? 1 : -1));
+  const expenses = await getExpenses();
 
   const total = expenses.reduce((sum, e) => sum + e.amountCents, 0);
   const pettyCashTotal = expenses
@@ -85,9 +120,9 @@ export default async function ExpensesPage() {
                     {e.paidFrom.replace(/_/g, " ")}
                   </TableCell>
                   <TableCell>
-                    {e.receiptId ? (
+                    {e.hasReceipt ? (
                       <Link
-                        href={`/api/receipts/${e.receiptId}`}
+                        href={`/api/receipts/expense/${e.id}`}
                         target="_blank"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
                       >

@@ -269,6 +269,51 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["audit_log"]["Row"]>;
         Relationships: [];
       };
+      expenses: {
+        Row: {
+          id: string;
+          category: string;
+          description: string;
+          amount_cents: number;
+          paid_from: "petty_cash" | "bank" | "other";
+          receipt_path: string | null;
+          recorded_by: string;
+          incurred_at: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["expenses"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["expenses"]["Row"]>;
+        Relationships: [];
+      };
+      requisitions: {
+        Row: {
+          id: string;
+          requested_by: string;
+          category: string;
+          description: string;
+          vendor: string | null;
+          amount_cents: number;
+          paid_from: "petty_cash" | "bank" | "other";
+          supporting_doc_path: string;
+          status: "auto_approved" | "pending" | "approved" | "rejected";
+          resolved_by: string | null;
+          resolved_at: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["requisitions"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["requisitions"]["Row"]>;
+        Relationships: [];
+      };
+      requisition_settings: {
+        Row: {
+          id: boolean;
+          threshold_cents: number;
+        };
+        Insert: Partial<Database["public"]["Tables"]["requisition_settings"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["requisition_settings"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: {
       lots_with_status: {

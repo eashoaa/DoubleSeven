@@ -15,34 +15,80 @@ import {
 import { formatDate } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/supabase/current-user";
-import { listRequisitions, getRequisitionSettings, type LocalRequisition } from "@/lib/server/local-store";
+import { createClient } from "@/lib/supabase/server";
 import { FileRequisitionDialog } from "@/components/requisitions/file-requisition-dialog";
 import { RequisitionActions } from "@/components/requisitions/requisition-actions";
 import { PageHeader } from "@/components/layout/page-header";
 
-const STATUS_LABEL: Record<LocalRequisition["status"], string> = {
+type RequisitionStatus = "auto_approved" | "pending" | "approved" | "rejected";
+
+interface RequisitionRow {
+  id: string;
+  createdAt: string;
+  description: string;
+  vendor: string | null;
+  hasDoc: boolean;
+  requestedBy: string;
+  status: RequisitionStatus;
+  rejectionReason: string | null;
+  amountCents: number;
+}
+
+const STATUS_LABEL: Record<RequisitionStatus, string> = {
   auto_approved: "Auto-approved",
   pending: "Pending approval",
   approved: "Approved",
   rejected: "Rejected",
 };
 
-const STATUS_BADGE_VARIANT: Record<LocalRequisition["status"], "outline" | "secondary" | "destructive"> = {
+const STATUS_BADGE_VARIANT: Record<RequisitionStatus, "outline" | "secondary" | "destructive"> = {
   auto_approved: "outline",
   pending: "secondary",
   approved: "outline",
   rejected: "destructive",
 };
 
+async function getRequisitions(): Promise<RequisitionRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("requisitions")
+    .select(
+      "id, created_at, description, vendor, supporting_doc_path, status, rejection_reason, amount_cents, profiles!requisitions_requested_by_fkey(full_name)"
+    )
+    .order("created_at", { ascending: false });
+
+  if (!data) return [];
+
+  return data.map((row) => {
+    const profile = row.profiles as unknown as { full_name: string } | null;
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      description: row.description,
+      vendor: row.vendor,
+      hasDoc: !!row.supporting_doc_path,
+      requestedBy: profile?.full_name ?? "Unknown",
+      status: row.status,
+      rejectionReason: row.rejection_reason,
+      amountCents: row.amount_cents,
+    };
+  });
+}
+
+async function getThresholdCents(): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("requisition_settings").select("threshold_cents").eq("id", true).single();
+  return data?.threshold_cents ?? 5_000_000;
+}
+
 export default async function RequisitionsPage() {
-  const [requisitions, { thresholdCents }, user] = await Promise.all([
-    listRequisitions(),
-    getRequisitionSettings(),
+  const [rows, thresholdCents, user] = await Promise.all([
+    getRequisitions(),
+    getThresholdCents(),
     getCurrentUser(),
   ]);
   const canResolve = can(user.role, "verifyPending");
 
-  const rows = [...requisitions].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const pending = rows.filter((r) => r.status === "pending");
   const pendingTotal = pending.reduce((sum, r) => sum + r.amountCents, 0);
 
@@ -105,9 +151,9 @@ export default async function RequisitionsPage() {
                   <TableCell className="font-medium text-foreground">{row.description}</TableCell>
                   <TableCell className="text-muted-foreground">{row.vendor ?? "-"}</TableCell>
                   <TableCell>
-                    {row.supportingDocId ? (
+                    {row.hasDoc ? (
                       <Link
-                        href={`/api/receipts/${row.supportingDocId}`}
+                        href={`/api/receipts/requisition/${row.id}`}
                         target="_blank"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
                       >

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { getAgentsAction, assignClientAgentAction } from "@/server/actions/agents";
-import type { LocalAgent } from "@/lib/server/local-store";
+import type { Agent } from "@/server/actions/agents";
 
 const selectClass =
   "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -28,7 +28,7 @@ export function AssignAgentDialog({
   currentAgentName: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [agents, setAgents] = useState<LocalAgent[] | null>(null);
+  const [agents, setAgents] = useState<Agent[] | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -87,7 +87,7 @@ export function AssignAgentDialog({
             </option>
             {agents?.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} ({a.commissionRatePercent}%)
+                {a.name} ({a.commission_rate}%)
               </option>
             ))}
           </select>

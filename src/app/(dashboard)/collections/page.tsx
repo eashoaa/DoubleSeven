@@ -32,7 +32,7 @@ interface CollectionRow {
   method: string | null;
   voided: boolean;
   deposited: boolean;
-  receiptId: string | null;
+  hasReceipt: boolean;
   loggedThroughApp: boolean;
 }
 
@@ -56,7 +56,7 @@ async function getDevFallbackCollections(): Promise<CollectionRow[]> {
       method: null,
       voided: false,
       deposited: true,
-      receiptId: null,
+      hasReceipt: false,
       loggedThroughApp: false,
     }));
 
@@ -71,7 +71,7 @@ async function getDevFallbackCollections(): Promise<CollectionRow[]> {
     method: row.method,
     voided: row.voided,
     deposited: row.deposited,
-    receiptId: row.receiptId,
+    hasReceipt: !!row.receiptId,
     loggedThroughApp: true,
   }));
 
@@ -84,7 +84,9 @@ async function getCollections(): Promise<CollectionRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("transactions")
-    .select("id, paid_at, type, gross_cents, discount_cents, method, voided, clients(name), lots(display_id)")
+    .select(
+      "id, paid_at, type, gross_cents, discount_cents, method, voided, deposited, receipt_url, clients(name), lots(display_id)"
+    )
     .order("paid_at", { ascending: false })
     .limit(50);
 
@@ -102,8 +104,8 @@ async function getCollections(): Promise<CollectionRow[]> {
       netCents: row.gross_cents - row.discount_cents,
       method: row.method,
       voided: row.voided,
-      deposited: true,
-      receiptId: null,
+      deposited: row.deposited,
+      hasReceipt: !!row.receipt_url,
       loggedThroughApp: true,
     };
   });
@@ -144,7 +146,11 @@ export default async function CollectionsPage() {
             <FileSpreadsheet className="size-4" strokeWidth={2} />
             Export ledger (.xlsx)
           </Link>
-          <LogPaymentDialog clients={clientOptions} requireReceipt={requireReceipt} />
+          <LogPaymentDialog
+            clients={clientOptions}
+            requireReceipt={requireReceipt}
+            restrictToReservation={user.role === "marketing"}
+          />
         </div>
       </div>
 
@@ -221,9 +227,9 @@ export default async function CollectionsPage() {
                     {row.method?.replace(/_/g, " ") ?? "-"}
                   </TableCell>
                   <TableCell>
-                    {row.receiptId ? (
+                    {row.hasReceipt ? (
                       <Link
-                        href={`/api/receipts/${row.receiptId}`}
+                        href={`/api/receipts/transaction/${row.id}`}
                         target="_blank"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
                       >

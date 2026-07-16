@@ -1,11 +1,4 @@
-import { calculateCommissionCents } from "./commissions";
-import {
-  listAgents,
-  getClientAgentTags,
-  listCollections,
-  listCommissionPayouts,
-  type LocalAgent,
-} from "@/lib/server/local-store";
+import { createClient } from "@/lib/supabase/server";
 
 export interface AgentCommissionSummary {
   agentId: string;
@@ -18,44 +11,38 @@ export interface AgentCommissionSummary {
 }
 
 /**
- * Commission is derived live from the client's tagged agent and their
- * lifetime non-voided payments, not stored per-transaction — this is a
- * running balance (earned minus paid out), not an oldest-first settlement
- * (see allocatePayout in commissions.ts for that, unused here by design;
- * a future payout-reconciliation UI can wire it in if needed).
+ * commission_ledger is populated automatically by the trg_insert_commission_ledger
+ * trigger (supabase/migrations/20260714000008_commission_auto_ledger.sql)
+ * whenever a non-voided transaction with an agent lands — this just sums
+ * what's already there per agent, minus recorded payouts, for a running
+ * balance. Aggregated in JS (no view for this yet) same as contract counts
+ * elsewhere in the app.
  */
 export async function getAgentCommissionSummaries(): Promise<AgentCommissionSummary[]> {
-  const [agents, tags, collections, payouts] = await Promise.all([
-    listAgents(),
-    getClientAgentTags(),
-    listCollections(),
-    listCommissionPayouts(),
+  const supabase = await createClient();
+  const [{ data: agents }, { data: ledgerRows }, { data: payoutRows }] = await Promise.all([
+    supabase.from("agents").select("id, name, commission_rate, active").order("name"),
+    supabase.from("commission_ledger").select("agent_id, amount_cents"),
+    supabase.from("commission_payouts").select("agent_id, amount_cents"),
   ]);
 
-  const clientIdsByAgent = new Map<string, Set<string>>();
-  for (const tag of Object.values(tags)) {
-    if (!clientIdsByAgent.has(tag.agentId)) clientIdsByAgent.set(tag.agentId, new Set());
-    clientIdsByAgent.get(tag.agentId)!.add(tag.clientId);
+  const earnedByAgent = new Map<string, number>();
+  for (const row of ledgerRows ?? []) {
+    earnedByAgent.set(row.agent_id, (earnedByAgent.get(row.agent_id) ?? 0) + row.amount_cents);
   }
 
   const paidByAgent = new Map<string, number>();
-  for (const payout of payouts) {
-    paidByAgent.set(payout.agentId, (paidByAgent.get(payout.agentId) ?? 0) + payout.amountCents);
+  for (const row of payoutRows ?? []) {
+    paidByAgent.set(row.agent_id, (paidByAgent.get(row.agent_id) ?? 0) + row.amount_cents);
   }
 
-  return agents.map((agent: LocalAgent) => {
-    const clientIds = clientIdsByAgent.get(agent.id) ?? new Set<string>();
-    const collectedCents = collections
-      .filter((row) => !row.voided && clientIds.has(row.clientId))
-      .reduce((sum, row) => sum + row.grossCents, 0);
-
-    const totalEarnedCents = calculateCommissionCents(collectedCents, agent.commissionRatePercent);
+  return (agents ?? []).map((agent) => {
+    const totalEarnedCents = earnedByAgent.get(agent.id) ?? 0;
     const totalPaidCents = paidByAgent.get(agent.id) ?? 0;
-
     return {
       agentId: agent.id,
       agentName: agent.name,
-      ratePercent: agent.commissionRatePercent,
+      ratePercent: agent.commission_rate,
       active: agent.active,
       totalEarnedCents,
       totalPaidCents,
