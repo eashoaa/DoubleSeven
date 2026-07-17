@@ -1,4 +1,4 @@
-import { Wallet, Users, AlertTriangle, LandPlot, ClipboardList } from "lucide-react";
+import { Wallet, Users, AlertTriangle, LandPlot, ClipboardList, Handshake, Banknote } from "lucide-react";
 import Link from "next/link";
 import { Greeting } from "@/components/layout/greeting";
 import { QuickActions } from "@/components/dashboard/quick-actions";
@@ -7,12 +7,89 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Money } from "@/components/shared/money";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { createClient } from "@/lib/supabase/server";
 import { getDevMasterlist, MASTERLIST_SNAPSHOT_DATE } from "@/lib/domain/dev-masterlist";
 import { listDefaultOverrides } from "@/lib/server/local-store";
+import { getAgentCommissionSummaries } from "@/lib/domain/agent-commissions";
 import type { LotStatus } from "@/types/domain";
+
+interface AgentClientRow {
+  id: string;
+  clientName: string;
+  lotDisplayId: string;
+  priceCents: number;
+  status: LotStatus;
+}
+
+interface AgentDashboardData {
+  agentName: string;
+  ratePercent: number;
+  totalEarnedCents: number;
+  totalPaidCents: number;
+  balanceCents: number;
+  myClients: AgentClientRow[];
+}
+
+/**
+ * Agents get a much smaller, self-service view: their own commission
+ * balance and their own book of clients — not the company-wide stats.
+ * RLS already scopes commission_ledger/commission_payouts/contracts to
+ * `agent_id = current_agent_id()` for this role; this just surfaces it.
+ */
+async function getAgentDashboardData(): Promise<AgentDashboardData | null> {
+  const supabase = await createClient();
+  const { data: agentId } = await supabase.rpc("current_agent_id");
+  if (!agentId) return null;
+
+  const { data: agent } = await supabase
+    .from("agents")
+    .select("name, commission_rate")
+    .eq("id", agentId)
+    .single();
+  if (!agent) return null;
+
+  const [summaries, { data: contracts }] = await Promise.all([
+    getAgentCommissionSummaries(),
+    supabase
+      .from("contracts")
+      .select("id, price_cents, status, clients(name), lots(display_id)")
+      .eq("agent_id", agentId)
+      .is("deleted_at", null)
+      .order("start_date", { ascending: false }),
+  ]);
+
+  const mine = summaries.find((s) => s.agentId === agentId);
+  const myClients: AgentClientRow[] = (contracts ?? []).map((c) => {
+    const client = c.clients as unknown as { name: string } | null;
+    const lot = c.lots as unknown as { display_id: string } | null;
+    return {
+      id: c.id,
+      clientName: client?.name ?? "Unknown client",
+      lotDisplayId: lot?.display_id ?? "-",
+      priceCents: c.price_cents,
+      status: c.status,
+    };
+  });
+
+  return {
+    agentName: agent.name,
+    ratePercent: agent.commission_rate,
+    totalEarnedCents: mine?.totalEarnedCents ?? 0,
+    totalPaidCents: mine?.totalPaidCents ?? 0,
+    balanceCents: mine?.balanceCents ?? 0,
+    myClients,
+  };
+}
 
 interface OverdueRow {
   contractId: string;
@@ -146,8 +223,100 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
-  const [user, stats] = await Promise.all([getCurrentUser(), getDashboardData()]);
+  const user = await getCurrentUser();
   const firstName = user.name.split(" ")[0];
+
+  if (user.role === "agent") {
+    const agentData = await getAgentDashboardData();
+    return (
+      <div className="flex flex-col gap-8">
+        <Greeting firstName={firstName} />
+
+        {!agentData ? (
+          <EmptyState
+            icon={Handshake}
+            title="Your account isn't linked to an agent record yet"
+            description="Ask an admin to link your login to your agent profile so your clients and commissions show up here."
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <StatCard
+                icon={Handshake}
+                tone="indigo"
+                label={`Commission rate — ${agentData.agentName}`}
+                value={`${agentData.ratePercent}%`}
+              />
+              <StatCard
+                icon={Wallet}
+                tone="violet"
+                label="Total commission earned"
+                value={<Money centavos={agentData.totalEarnedCents} />}
+              />
+              <StatCard
+                icon={Banknote}
+                tone="amber"
+                label="Balance owed to you"
+                value={<Money centavos={agentData.balanceCents} />}
+              />
+            </div>
+
+            <div className="shadow-card rounded-2xl border border-hairline bg-card p-6">
+              <h2 className="text-base font-semibold text-foreground">My clients</h2>
+              {agentData.myClients.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="No clients tagged to you yet"
+                  description="Once an admin tags a client to you, their lot and contract will show up here."
+                />
+              ) : (
+                <div className="mt-4 rounded-xl border border-hairline">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                          Client
+                        </TableHead>
+                        <TableHead className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                          Lot
+                        </TableHead>
+                        <TableHead className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                          Price
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agentData.myClients.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium text-foreground">{c.clientName}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <Link href={`/map?lot=${encodeURIComponent(c.lotDisplayId)}`} className="hover:underline">
+                              {c.lotDisplayId}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={c.status} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Money centavos={c.priceCents} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const stats = await getDashboardData();
 
   return (
     <div className="flex flex-col gap-8">

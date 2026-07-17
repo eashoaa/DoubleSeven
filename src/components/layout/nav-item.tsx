@@ -18,20 +18,52 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-function RowContent({ item, active, label }: { item: NavItemType; active: boolean; label: string }) {
+function RowContent({
+  item,
+  active,
+  label,
+  badgeCount,
+  collapsed,
+}: {
+  item: NavItemType;
+  active: boolean;
+  label: string;
+  badgeCount?: number;
+  collapsed: boolean;
+}) {
   const Icon = item.icon;
   return (
     <>
-      <Icon className="size-4.5 shrink-0" strokeWidth={2} />
-      <span className="sidebar-label overflow-hidden whitespace-nowrap">
+      <span className="relative shrink-0">
+        <Icon className="size-4.5" strokeWidth={2} />
+        {collapsed && !!badgeCount && (
+          <span className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-status-defaulted-map text-[8px] font-bold text-white">
+            {badgeCount > 9 ? "9+" : badgeCount}
+          </span>
+        )}
+      </span>
+      <span className="sidebar-label flex flex-1 items-center justify-between gap-2 overflow-hidden whitespace-nowrap">
         <SplitLetters text={label} />
+        {!collapsed && !!badgeCount && (
+          <span className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-status-defaulted-map text-[10px] font-bold text-white">
+            {badgeCount > 9 ? "9+" : badgeCount}
+          </span>
+        )}
       </span>
       {active && <span className="sr-only">(current)</span>}
     </>
   );
 }
 
-export function NavItemRow({ item, collapsed }: { item: NavItemType; collapsed: boolean }) {
+export function NavItemRow({
+  item,
+  collapsed,
+  badgeCount,
+}: {
+  item: NavItemType;
+  collapsed: boolean;
+  badgeCount?: number;
+}) {
   const { t } = useLanguage();
   const label = t(item.labelKey);
   const pathname = usePathname();
@@ -80,7 +112,7 @@ export function NavItemRow({ item, collapsed }: { item: NavItemType; collapsed: 
         active && "bg-white text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06)] hover:bg-white"
       )}
     >
-      <RowContent item={item} active={active} label={label} />
+      <RowContent item={item} active={active} label={label} badgeCount={badgeCount} collapsed={collapsed} />
       {hasChildren && (
         <ChevronDown
           className={cn(

@@ -25,6 +25,7 @@ export const DICTIONARY = {
   "nav.inventory": { en: "Inventory", bisaya: "Imbentaryo" },
   "nav.requisitions": { en: "Requisitions", bisaya: "Hangyo sa Gasto" },
   "nav.agents": { en: "Agents", bisaya: "mga Ahente" },
+  "nav.reports": { en: "Reports", bisaya: "mga Report" },
   "nav.settings": { en: "Settings", bisaya: "Kasayoran sa Panid" },
   "nav.faq": { en: "Help / FAQ", bisaya: "Tabang / Mga Pangutana" },
 
@@ -73,6 +74,12 @@ export const DICTIONARY = {
   "page.agents.desc": {
     en: "Sales agents, their commission rate, and how much is owed to each.",
     bisaya: "Mga ahente sa benta, ang ilang komisyon, ug pila pa ang utang kanila.",
+  },
+
+  "page.reports.title": { en: "Reports", bisaya: "mga Report" },
+  "page.reports.desc": {
+    en: "Company-wide revenue, top agents, sell-through, and outstanding balances.",
+    bisaya: "Kinatibuk-ang kita, top nga mga ahente, benta, ug nabilin nga utang.",
   },
 
   "page.expenses.title": { en: "Expenses", bisaya: "Gasto" },

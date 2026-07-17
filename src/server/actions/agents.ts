@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { can } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 import type { Database } from "@/types/database";
 
 export type Agent = Database["public"]["Tables"]["agents"]["Row"];
@@ -37,14 +38,22 @@ export async function createAgentAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("agents").insert({
-    name,
-    commission_rate: commissionRatePercent,
-    contact: contact || null,
-  });
-  if (error) {
-    return { error: error.message, success: false };
+  const { data: agent, error } = await supabase
+    .from("agents")
+    .insert({ name, commission_rate: commissionRatePercent, contact: contact || null })
+    .select("id")
+    .single();
+  if (error || !agent) {
+    return { error: error?.message ?? "Failed to add agent.", success: false };
   }
+
+  await logAudit({
+    action: "agent.created",
+    entityType: "agent",
+    entityId: agent.id,
+    userId: user.id,
+    summary: `Added sales agent ${name} (${commissionRatePercent}% commission)`,
+  });
 
   revalidatePath("/agents");
   revalidatePath("/clients");
@@ -72,6 +81,14 @@ export async function assignClientAgentAction(input: {
     .is("deleted_at", null);
   if (error) throw new Error(error.message);
 
+  await logAudit({
+    action: "client.agent_tagged",
+    entityType: "client",
+    entityId: input.clientId,
+    userId: user.id,
+    summary: `Tagged ${input.clientName} to agent ${input.agentName}`,
+  });
+
   revalidatePath("/clients");
   revalidatePath("/agents");
 }
@@ -86,6 +103,7 @@ export async function recordCommissionPayoutAction(
   }
 
   const agentId = String(formData.get("agentId") ?? "");
+  const agentName = String(formData.get("agentName") ?? "").trim();
   const amountPesos = Number(formData.get("amountPesos") ?? 0);
   const note = String(formData.get("note") ?? "").trim();
 
@@ -93,16 +111,25 @@ export async function recordCommissionPayoutAction(
     return { error: "A positive amount is required.", success: false };
   }
 
+  const amountCents = Math.round(amountPesos * 100);
   const supabase = await createClient();
   const { error } = await supabase.from("commission_payouts").insert({
     agent_id: agentId,
-    amount_cents: Math.round(amountPesos * 100),
+    amount_cents: amountCents,
     note: note || null,
     recorded_by: user.id,
   });
   if (error) {
     return { error: error.message, success: false };
   }
+
+  await logAudit({
+    action: "commission.paid_out",
+    entityType: "agent",
+    entityId: agentId,
+    userId: user.id,
+    summary: `Paid out ₱${(amountCents / 100).toLocaleString()} commission${agentName ? ` to ${agentName}` : ""}`,
+  });
 
   revalidatePath("/agents");
   return { error: null, success: true };

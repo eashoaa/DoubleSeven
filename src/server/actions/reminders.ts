@@ -2,14 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 import { isBrevoConfigured, sendReminderEmail, sendReminderSms } from "@/lib/integrations/brevo";
-import { renderReminderTemplate, REMINDER_TEMPLATES } from "@/lib/domain/reminder-template";
-import {
-  getReminderSettings,
-  saveReminderSettings,
-  logReminder,
-  type ReminderSettings,
-} from "@/lib/server/local-store";
+import { renderReminderTemplate, REMINDER_TEMPLATES, DEFAULT_TEMPLATE_ID } from "@/lib/domain/reminder-template";
 
 export interface SendReminderState {
   ok: boolean;
@@ -32,16 +28,30 @@ export async function sendReminderAction(
   const body = String(formData.get("body") ?? "");
 
   const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  async function log(ok: boolean, error: string | null) {
+    await supabase.from("reminder_log").insert({
+      contract_id: contractId || null,
+      client_name: clientName,
+      channel,
+      ok,
+      error,
+      sent_by: user.id,
+    });
+    await logAudit({
+      action: ok ? "reminder.sent" : "reminder.failed",
+      entityType: "reminder",
+      entityId: contractId || "unknown",
+      userId: user.id,
+      summary: ok
+        ? `Sent ${channel} reminder to ${clientName}`
+        : `Failed to send ${channel} reminder to ${clientName}: ${error}`,
+    });
+  }
 
   if (!isBrevoConfigured()) {
-    await logReminder({
-      contractId,
-      clientName,
-      channel,
-      ok: false,
-      error: "Brevo API key not configured.",
-      sentBy: user.name,
-    });
+    await log(false, "Brevo API key not configured.");
     revalidatePath("/overdue");
     return {
       ok: false,
@@ -57,14 +67,7 @@ export async function sendReminderAction(
       ? await sendReminderEmail({ toEmail, toName: clientName, subject, htmlBody: rendered.replace(/\n/g, "<br/>") })
       : await sendReminderSms({ toPhone, message: rendered });
 
-  await logReminder({
-    contractId,
-    clientName,
-    channel,
-    ok: result.ok,
-    error: result.error,
-    sentBy: user.name,
-  });
+  await log(result.ok, result.error);
   revalidatePath("/overdue");
 
   return { ok: result.ok, error: result.error };
@@ -75,12 +78,18 @@ export interface SaveSettingsState {
   error: string | null;
 }
 
+interface ReminderSettings {
+  templateOverrides: Record<string, { subject: string; body: string }>;
+  automationEnabled: boolean;
+  automationTemplateId: string;
+}
+
 export async function saveReminderSettingsAction(
   _prev: SaveSettingsState,
   formData: FormData
 ): Promise<SaveSettingsState> {
   const automationEnabled = formData.get("automationEnabled") === "on";
-  const automationTemplateId = String(formData.get("automationTemplateId") ?? REMINDER_TEMPLATES[0].id);
+  const automationTemplateId = String(formData.get("automationTemplateId") ?? DEFAULT_TEMPLATE_ID);
 
   const templateOverrides: ReminderSettings["templateOverrides"] = {};
   for (const t of REMINDER_TEMPLATES) {
@@ -93,12 +102,62 @@ export async function saveReminderSettingsAction(
   }
 
   const user = await getCurrentUser();
-  const settings: ReminderSettings = { templateOverrides, automationEnabled, automationTemplateId };
-  await saveReminderSettings(settings, user.name);
+  if (user.role !== "admin") {
+    return { ok: false, error: "Only admins can change reminder settings." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("reminder_settings")
+    .update({
+      automation_enabled: automationEnabled,
+      automation_template_id: automationTemplateId,
+      template_overrides: templateOverrides,
+    })
+    .eq("id", true);
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  await logAudit({
+    action: "reminder_settings.updated",
+    entityType: "settings",
+    entityId: "reminder-settings",
+    userId: user.id,
+    summary: automationEnabled
+      ? "Enabled automated monthly payment reminders"
+      : "Updated reminder template / disabled automation",
+  });
+
   revalidatePath("/overdue");
   return { ok: true, error: null };
 }
 
-export async function getReminderSettingsForPage() {
-  return getReminderSettings();
+export async function getReminderSettingsForPage(): Promise<ReminderSettings> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const { getReminderSettings } = await import("@/lib/server/local-store");
+    return getReminderSettings();
+  }
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("reminder_settings")
+    .select("automation_enabled, automation_template_id, template_overrides")
+    .eq("id", true)
+    .single();
+
+  return {
+    automationEnabled: data?.automation_enabled ?? false,
+    automationTemplateId: data?.automation_template_id ?? DEFAULT_TEMPLATE_ID,
+    templateOverrides: data?.template_overrides ?? {},
+  };
+}
+
+/** Merges saved overrides onto the built-in templates for display/editing. */
+export async function getEffectiveTemplatesForPage() {
+  const settings = await getReminderSettingsForPage();
+  return REMINDER_TEMPLATES.map((t) => ({
+    ...t,
+    subject: settings.templateOverrides[t.id]?.subject ?? t.subject,
+    body: settings.templateOverrides[t.id]?.body ?? t.body,
+  }));
 }

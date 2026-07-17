@@ -314,6 +314,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["requisition_settings"]["Row"]>;
         Relationships: [];
       };
+      reminder_settings: {
+        Row: {
+          id: boolean;
+          automation_enabled: boolean;
+          automation_template_id: string;
+          template_overrides: Record<string, { subject: string; body: string }>;
+        };
+        Insert: Partial<Database["public"]["Tables"]["reminder_settings"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["reminder_settings"]["Row"]>;
+        Relationships: [];
+      };
+      reminder_log: {
+        Row: {
+          id: string;
+          contract_id: string | null;
+          client_name: string;
+          channel: "email" | "sms";
+          ok: boolean;
+          error: string | null;
+          sent_at: string;
+          sent_by: string | null;
+        };
+        Insert: Partial<Database["public"]["Tables"]["reminder_log"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["reminder_log"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: {
       lots_with_status: {

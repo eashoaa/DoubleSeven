@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { can } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 
 export interface RequisitionActionState {
   error: string | null;
@@ -69,6 +70,16 @@ export async function createRequisitionAction(
   // trg_requisition_to_expense (DB trigger) creates the matching expenses
   // row automatically when status is auto_approved — see the migration.
 
+  await logAudit({
+    action: "requisition.filed",
+    entityType: "requisition",
+    entityId: id,
+    userId: user.id,
+    summary: autoApproved
+      ? `Filed and auto-approved ₱${(amountCents / 100).toLocaleString()} requisition: ${description}`
+      : `Filed ₱${(amountCents / 100).toLocaleString()} requisition for approval: ${description}`,
+  });
+
   if (autoApproved) revalidatePath("/expenses");
   revalidatePath("/requisitions");
   return { error: null, success: true };
@@ -86,6 +97,14 @@ export async function approveRequisitionAction(id: string) {
   if (error) throw new Error(error.message);
   // trg_requisition_to_expense (DB trigger) creates the matching expenses
   // row automatically on this pending -> approved transition.
+
+  await logAudit({
+    action: "requisition.approved",
+    entityType: "requisition",
+    entityId: id,
+    userId: user.id,
+    summary: "Approved a requisition",
+  });
 
   revalidatePath("/requisitions");
   revalidatePath("/expenses");
@@ -106,6 +125,14 @@ export async function rejectRequisitionAction(id: string, reason: string) {
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
+  await logAudit({
+    action: "requisition.rejected",
+    entityType: "requisition",
+    entityId: id,
+    userId: user.id,
+    summary: `Rejected requisition: ${reason}`,
+  });
 
   revalidatePath("/requisitions");
 }

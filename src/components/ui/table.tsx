@@ -4,9 +4,37 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Every table in the app funnels through here, so the mobile
+// "there's more to the right" affordance is a one-file fix: track real
+// scroll position (not just a static css fade, which can't tell whether
+// there's actually more to scroll to) and only show the hint on narrow
+// viewports, since desktop tables usually fit already.
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [canScrollMore, setCanScrollMore] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    function update() {
+      if (!el) return
+      setCanScrollMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 8)
+    }
+
+    update()
+    el.addEventListener("scroll", update, { passive: true })
+    const resizeObserver = new ResizeObserver(update)
+    resizeObserver.observe(el)
+    return () => {
+      el.removeEventListener("scroll", update)
+      resizeObserver.disconnect()
+    }
+  }, [])
+
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >
@@ -15,6 +43,14 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
+      {canScrollMore && (
+        <div
+          aria-hidden
+          className="pointer-events-none sticky top-0 right-0 -mt-10 flex h-10 w-10 items-end justify-end bg-gradient-to-l from-card to-transparent pb-1.5 pr-1 sm:hidden"
+        >
+          <span className="text-[10px] font-medium whitespace-nowrap text-muted-foreground">More →</span>
+        </div>
+      )}
     </div>
   )
 }

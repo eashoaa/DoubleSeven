@@ -17,9 +17,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { can } from "@/lib/permissions";
 import { getDevMasterlist, MASTERLIST_SNAPSHOT_DATE } from "@/lib/domain/dev-masterlist";
+import { monthlyTrend } from "@/lib/domain/revenue-trend";
 import { listCollections, listLocalClients } from "@/lib/server/local-store";
 import { LogPaymentDialog } from "@/components/collections/log-payment-dialog";
 import { MarkDepositedButton } from "@/components/collections/mark-deposited-button";
+import { getCashAccountsAction } from "@/server/actions/cash-accounts";
 import { CollectionsTrendChart } from "@/components/collections/collections-trend-chart";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -54,26 +56,6 @@ function periodStart(period: Period, today: Date): string | null {
       return null;
   }
   return d.toISOString().slice(0, 10);
-}
-
-/** Collected total per month for the trailing 12 months, independent of the period filter — the "traction" view. */
-function monthlyTrend(rows: CollectionRow[]) {
-  const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return {
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
-      totalCents: 0,
-    };
-  });
-  const byKey = new Map(months.map((m) => [m.key, m]));
-  for (const r of rows) {
-    if (r.voided) continue;
-    const bucket = byKey.get(r.paidAt.slice(0, 7));
-    if (bucket) bucket.totalCents += r.netCents;
-  }
-  return months;
 }
 
 interface CollectionRow {
@@ -181,11 +163,12 @@ export default async function CollectionsPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const [{ period: periodParam }, allRows, clientOptions, user] = await Promise.all([
+  const [{ period: periodParam }, allRows, clientOptions, user, accounts] = await Promise.all([
     searchParams,
     getCollections(),
     getClientOptions(),
     getCurrentUser(),
+    getCashAccountsAction(),
   ]);
   const requireReceipt = can(user.role, "requireReceiptPhoto");
 
@@ -330,7 +313,7 @@ export default async function CollectionsPage({
                     {row.type === "opening_balance" ? (
                       <span className="text-xs text-muted-foreground">Migrated</span>
                     ) : (
-                      <MarkDepositedButton id={row.id} deposited={row.deposited} />
+                      <MarkDepositedButton id={row.id} deposited={row.deposited} accounts={accounts} />
                     )}
                   </TableCell>
                   <TableCell className="text-right">

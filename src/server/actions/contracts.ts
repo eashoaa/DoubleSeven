@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 import { markContractDefaulted } from "@/lib/server/local-store";
 
 export interface MarkDefaultedState {
@@ -14,6 +16,7 @@ export async function markDefaultedAction(
   formData: FormData
 ): Promise<MarkDefaultedState> {
   const contractId = String(formData.get("contractId") ?? "");
+  const lotId = String(formData.get("lotId") ?? "");
   const lotDisplayId = String(formData.get("lotDisplayId") ?? "");
   const clientName = String(formData.get("clientName") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
@@ -23,7 +26,28 @@ export async function markDefaultedAction(
   }
 
   const user = await getCurrentUser();
-  await markContractDefaulted({ contractId, lotDisplayId, clientName, reason, markedBy: user.name });
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    await markContractDefaulted({ contractId, lotDisplayId, clientName, reason, markedBy: user.name });
+  } else {
+    // lots_write RLS is admin-only — matches the intent of status_override
+    // (a manual, forceful flag) already documented in the lots table.
+    if (user.role !== "admin") {
+      return { ok: false, error: "Only admins can mark an account as defaulted." };
+    }
+    const supabase = await createClient();
+    const { error } = await supabase.from("lots").update({ status_override: "defaulted" }).eq("id", lotId);
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    await logAudit({
+      action: "contract.marked_defaulted",
+      entityType: "contract",
+      entityId: contractId,
+      userId: user.id,
+      summary: `Marked ${clientName} (${lotDisplayId}) as defaulted: ${reason}`,
+    });
+  }
 
   revalidatePath("/overdue");
   revalidatePath("/");

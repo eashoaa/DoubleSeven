@@ -4,13 +4,19 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
-import { hasNav, type Role } from "@/lib/permissions";
+import { hasNav, type Role, type NavId } from "@/lib/permissions";
 import { NAV_ITEMS } from "./nav-items";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { NavItemRow } from "./nav-item";
 import { useMobileMenuOpen, setMobileMenuOpen } from "./sidebar-state";
 
-export function MobileSidebar({ role }: { role: Role }) {
+export function MobileSidebar({
+  role,
+  badgeCounts = {},
+}: {
+  role: Role;
+  badgeCounts?: Partial<Record<NavId, number>>;
+}) {
   const items = NAV_ITEMS.filter((item) => hasNav(role, item.id)).map((item) => ({
     ...item,
     children: item.children?.filter((child) => hasNav(role, child.id)),
@@ -66,7 +72,7 @@ export function MobileSidebar({ role }: { role: Role }) {
 
         <nav className="flex flex-col gap-1">
           {items.map((item) => (
-            <NavItemRow key={item.id} item={item} collapsed={false} />
+            <NavItemRow key={item.id} item={item} collapsed={false} badgeCount={badgeCounts[item.id]} />
           ))}
         </nav>
       </aside>

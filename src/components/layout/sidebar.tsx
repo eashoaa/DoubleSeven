@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { hasNav, type Role } from "@/lib/permissions";
+import { hasNav, type Role, type NavId } from "@/lib/permissions";
 import { NAV_ITEMS } from "./nav-items";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { NavItemRow } from "./nav-item";
@@ -21,7 +21,13 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({
+  role,
+  badgeCounts = {},
+}: {
+  role: Role;
+  badgeCounts?: Partial<Record<NavId, number>>;
+}) {
   const items = NAV_ITEMS.filter((item) => hasNav(role, item.id)).map((item) => ({
     ...item,
     children: item.children?.filter((child) => hasNav(role, child.id)),
@@ -113,7 +119,7 @@ export function Sidebar({ role }: { role: Role }) {
 
       <nav className="flex flex-col gap-1">
         {items.map((item) => (
-          <NavItemRow key={item.id} item={item} collapsed={collapsed} />
+          <NavItemRow key={item.id} item={item} collapsed={collapsed} badgeCount={badgeCounts[item.id]} />
         ))}
       </nav>
     </aside>

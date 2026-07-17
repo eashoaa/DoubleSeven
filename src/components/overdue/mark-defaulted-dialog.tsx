@@ -19,10 +19,12 @@ import { useLanguage } from "@/lib/i18n/language-context";
 
 export function MarkDefaultedDialog({
   contractId,
+  lotId,
   clientName,
   lotDisplayId,
 }: {
   contractId: string;
+  lotId: string;
   clientName: string;
   lotDisplayId: string;
 }) {
@@ -59,6 +61,7 @@ export function MarkDefaultedDialog({
       <DialogContent className="sm:max-w-lg">
         <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="contractId" value={contractId} />
+          <input type="hidden" name="lotId" value={lotId} />
           <input type="hidden" name="clientName" value={clientName} />
           <input type="hidden" name="lotDisplayId" value={lotDisplayId} />
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { can } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 import type { TransactionTypeEnum } from "@/types/database";
 
 export interface RecordCollectionState {
@@ -88,6 +89,15 @@ export async function recordCollectionAction(
     return { error: error.message, success: false };
   }
 
+  const { data: client } = await supabase.from("clients").select("name").eq("id", clientId).single();
+  await logAudit({
+    action: "collection.recorded",
+    entityType: "transaction",
+    entityId: id,
+    userId: user.id,
+    summary: `Recorded ₱${(grossCents / 100).toLocaleString()} ${type} from ${client?.name ?? "client"} (${lotDisplayId}, ${method})`,
+  });
+
   revalidatePath("/collections");
   revalidatePath("/lots");
   revalidatePath("/map");
@@ -96,18 +106,41 @@ export async function recordCollectionAction(
   return { error: null, success: true };
 }
 
-export async function markDepositedAction(id: string) {
+export async function markDepositedAction(id: string, accountId?: string) {
+  const user = await getCurrentUser();
   const supabase = await createClient();
   await supabase
     .from("transactions")
-    .update({ deposited: true, deposit_date: new Date().toISOString().slice(0, 10) })
+    .update({
+      deposited: true,
+      deposit_date: new Date().toISOString().slice(0, 10),
+      deposit_account_id: accountId || null,
+    })
     .eq("id", id);
+  await logAudit({
+    action: "collection.deposited",
+    entityType: "transaction",
+    entityId: id,
+    userId: user.id,
+    summary: "Marked a collection as deposited",
+  });
   revalidatePath("/collections");
 }
 
 export async function undoMarkDepositedAction(id: string) {
+  const user = await getCurrentUser();
   const supabase = await createClient();
-  await supabase.from("transactions").update({ deposited: false, deposit_date: null }).eq("id", id);
+  await supabase
+    .from("transactions")
+    .update({ deposited: false, deposit_date: null, deposit_account_id: null })
+    .eq("id", id);
+  await logAudit({
+    action: "collection.deposit_undone",
+    entityType: "transaction",
+    entityId: id,
+    userId: user.id,
+    summary: "Undid a 'marked deposited'",
+  });
   revalidatePath("/collections");
 }
 

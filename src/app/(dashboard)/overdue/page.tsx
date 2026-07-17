@@ -11,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getOverdueContractsMerged } from "@/lib/domain/dev-masterlist";
-import { getReminderSettings, getEffectiveTemplates } from "@/lib/server/local-store";
+import { getOverdueRows } from "@/lib/server/overdue";
+import { getCurrentUser } from "@/lib/supabase/current-user";
+import { getReminderSettingsForPage, getEffectiveTemplatesForPage } from "@/server/actions/reminders";
 import { isBrevoConfigured } from "@/lib/integrations/brevo";
 import { AutomationPanel } from "@/components/overdue/automation-panel";
 import { SendReminderDialog } from "@/components/overdue/send-reminder-dialog";
@@ -21,12 +22,14 @@ import { PageHeader } from "@/components/layout/page-header";
 import { OverdueHint } from "@/components/overdue/overdue-hint";
 
 export default async function OverduePage() {
-  const [overdue, settings, templates] = await Promise.all([
-    getOverdueContractsMerged(),
-    getReminderSettings(),
-    getEffectiveTemplates(),
+  const [overdue, settings, templates, user] = await Promise.all([
+    getOverdueRows(),
+    getReminderSettingsForPage(),
+    getEffectiveTemplatesForPage(),
+    getCurrentUser(),
   ]);
   const brevoConfigured = isBrevoConfigured();
+  const canMarkDefaulted = user.role === "admin";
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,9 +88,10 @@ export default async function OverduePage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {c.status !== "defaulted" && (
+                      {c.status !== "defaulted" && canMarkDefaulted && (
                         <MarkDefaultedDialog
                           contractId={c.id}
+                          lotId={c.lotId}
                           clientName={c.clientName}
                           lotDisplayId={c.lotDisplayId}
                         />

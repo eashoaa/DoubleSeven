@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Boxes,
   Handshake,
+  BarChart3,
 } from "lucide-react";
 import type { NavId } from "@/lib/permissions";
 import type { LangKey } from "@/lib/i18n/dictionary";
@@ -55,6 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
   },
   { id: "agents", label: "Agents", labelKey: "nav.agents", href: "/agents", icon: Handshake },
+  { id: "reports", label: "Reports", labelKey: "nav.reports", href: "/reports", icon: BarChart3 },
   { id: "faq", label: "Help / FAQ", labelKey: "nav.faq", href: "/faq", icon: HelpCircle },
   { id: "settings", label: "Settings", labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];

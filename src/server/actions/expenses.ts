@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/server/audit";
 
 export interface RecordExpenseState {
   error: string | null;
@@ -40,11 +41,12 @@ export async function recordExpenseAction(
     }
   }
 
+  const amountCents = Math.round(amountPesos * 100);
   const { error } = await supabase.from("expenses").insert({
     id,
     category: category || "Uncategorized",
     description,
-    amount_cents: Math.round(amountPesos * 100),
+    amount_cents: amountCents,
     paid_from: paidFrom,
     receipt_path: receiptPath,
     recorded_by: user.id,
@@ -53,6 +55,14 @@ export async function recordExpenseAction(
   if (error) {
     return { error: error.message, success: false };
   }
+
+  await logAudit({
+    action: "expense.recorded",
+    entityType: "expense",
+    entityId: id,
+    userId: user.id,
+    summary: `Logged ₱${(amountCents / 100).toLocaleString()} expense: ${description} (${paidFrom})`,
+  });
 
   revalidatePath("/expenses");
   return { error: null, success: true };
