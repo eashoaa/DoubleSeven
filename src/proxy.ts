@@ -7,6 +7,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|park/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // /api/cron/* is called by Vercel Cron with no user session at all —
+    // it authenticates via CRON_SECRET instead, so this redirect-to-login
+    // logic doesn't apply and was making every cron request 307 to /login
+    // before it ever reached the route's own secret check.
+    "/((?!_next/static|_next/image|favicon.ico|park/|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
