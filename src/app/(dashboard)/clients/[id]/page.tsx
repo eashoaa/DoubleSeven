@@ -7,11 +7,15 @@ import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getDevMasterlist } from "@/lib/domain/dev-masterlist";
 import { generateInstallmentSchedule } from "@/lib/domain/schedule";
-import { deriveLotStatus } from "@/lib/domain/status";
+import { deriveLotStatus, netPaidCents, outstandingBalanceCents } from "@/lib/domain/status";
 import { listLocalClients, listLocalContracts, listCollections, getContactOverrides } from "@/lib/server/local-store";
 import { getClientHistoryAction } from "@/server/actions/client-history";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import contractPdfs from "../../../../../scripts/data/contract-pdfs.json";
 import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
+import { WaivePenaltyButton } from "@/components/clients/waive-penalty-button";
+import { VerifyClientButton } from "@/components/clients/verify-client-button";
+import { can } from "@/lib/permissions";
 import type { LotStatus } from "@/types/domain";
 
 const CONTRACT_PDFS = contractPdfs as Record<string, string[]>;
@@ -23,6 +27,13 @@ interface ClientDetail {
   email: string | null;
   address: string | null;
   since: string;
+  verifiedAt: string | null;
+}
+
+interface PenaltyRow {
+  id: string;
+  installmentSeq: number;
+  amountCents: number;
 }
 
 interface ContractSummary {
@@ -31,6 +42,7 @@ interface ContractSummary {
   priceCents: number;
   paidCents: number;
   status: LotStatus;
+  penalties: PenaltyRow[];
 }
 
 async function getDevFallbackDetail(id: string) {
@@ -55,6 +67,7 @@ async function getDevFallbackDetail(id: string) {
         email: override?.email ?? masterlistClient.email,
         address: override?.address ?? null,
         since: masterlistClient.since,
+        verifiedAt: null,
       }
     : {
         id: localClient!.id,
@@ -63,11 +76,19 @@ async function getDevFallbackDetail(id: string) {
         email: override?.email ?? localClient!.email,
         address: override?.address ?? localClient!.address,
         since: localClient!.since,
+        verifiedAt: null,
       };
 
   const contracts: ContractSummary[] = masterlistContracts
     .filter((c) => c.clientId === id)
-    .map((c) => ({ id: c.id, lotDisplayId: c.lotDisplayId, priceCents: c.priceCents, paidCents: c.paidCents, status: c.status }));
+    .map((c) => ({
+      id: c.id,
+      lotDisplayId: c.lotDisplayId,
+      priceCents: c.priceCents,
+      paidCents: c.paidCents,
+      status: c.status,
+      penalties: [],
+    }));
 
   for (const c of localContracts.filter((c) => c.clientId === id)) {
     const paidCents = collections
@@ -87,7 +108,7 @@ async function getDevFallbackDetail(id: string) {
       installments: schedule.filter((s) => s.seq > 0),
       today: new Date(),
     });
-    contracts.push({ id: c.id, lotDisplayId: c.lotDisplayId, priceCents: c.priceCents, paidCents, status });
+    contracts.push({ id: c.id, lotDisplayId: c.lotDisplayId, priceCents: c.priceCents, paidCents, status, penalties: [] });
   }
 
   return { client, contracts, contractIdsWithFiles: [] as string[] };
@@ -100,20 +121,30 @@ async function getSupabaseDetail(id: string) {
 
   const { data: contracts } = await supabase
     .from("contracts")
-    .select("id, price_cents, status, contract_file_path, lots(display_id), transactions(gross_cents, discount_cents, voided)")
+    .select(
+      "id, price_cents, status, contract_file_path, lots(display_id), transactions(type, gross_cents, discount_cents, voided), penalties(id, installment_seq, amount_cents, waived_at)"
+    )
     .eq("client_id", id)
     .is("deleted_at", null);
 
   const summaries: ContractSummary[] = (contracts ?? []).map((c) => {
     const lot = c.lots as unknown as { display_id: string } | null;
-    const txns = (c.transactions as unknown as { gross_cents: number; discount_cents: number; voided: boolean }[]) ?? [];
-    const paidCents = txns.filter((t) => !t.voided).reduce((sum, t) => sum + t.gross_cents - t.discount_cents, 0);
+    const txns =
+      (c.transactions as unknown as { type: string; gross_cents: number; discount_cents: number; voided: boolean }[]) ?? [];
+    const penaltyRows =
+      (c.penalties as unknown as { id: string; installment_seq: number; amount_cents: number; waived_at: string | null }[]) ??
+      [];
     return {
       id: c.id,
       lotDisplayId: lot?.display_id ?? "-",
       priceCents: c.price_cents,
-      paidCents,
+      paidCents: netPaidCents(
+        txns.map((t) => ({ type: t.type, grossCents: t.gross_cents, discountCents: t.discount_cents, voided: t.voided }))
+      ),
       status: c.status,
+      penalties: penaltyRows
+        .filter((p) => !p.waived_at)
+        .map((p) => ({ id: p.id, installmentSeq: p.installment_seq, amountCents: p.amount_cents })),
     };
   });
 
@@ -127,6 +158,7 @@ async function getSupabaseDetail(id: string) {
       email: client.email,
       address: client.address ?? null,
       since: client.since,
+      verifiedAt: client.verified_at,
     } as ClientDetail,
     contracts: summaries,
     contractIdsWithFiles,
@@ -140,11 +172,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   const { client, contracts, contractIdsWithFiles } = detail;
   const history = await getClientHistoryAction(client.id, client.name);
+  const user = await getCurrentUser();
+  const canWaivePenalty = user.role === "admin" || user.role === "accountant";
+  const canVerify = can(user.role, "editClient");
   const pdfs = CONTRACT_PDFS[client.name] ?? [];
   const hasAnyContractFile = pdfs.length > 0 || contractIdsWithFiles.length > 0;
   const totalPrice = contracts.reduce((sum, c) => sum + c.priceCents, 0);
   const totalPaid = contracts.reduce((sum, c) => sum + c.paidCents, 0);
-  const totalBalance = totalPrice - totalPaid;
+  const totalPenalty = contracts.reduce((sum, c) => sum + c.penalties.reduce((s, p) => s + p.amountCents, 0), 0);
+  const totalBalance = outstandingBalanceCents({ priceCents: totalPrice, paidCents: totalPaid, penaltyCents: totalPenalty });
 
   return (
     <div className="flex flex-col gap-6">
@@ -178,7 +214,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="shadow-card flex flex-col gap-4 rounded-2xl border border-hairline bg-card p-5">
-        <h2 className="text-base font-semibold text-foreground">Contact</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-foreground">Contact</h2>
+          {canVerify && <VerifyClientButton clientId={client.id} verifiedAt={client.verifiedAt} />}
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <div className="text-xs text-muted-foreground">Contact number</div>
@@ -203,22 +242,46 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <p className="text-sm text-muted-foreground">No contracts on record for this client.</p>
         ) : (
           <div className="flex flex-col divide-y divide-hairline">
-            {contracts.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <Link href={`/map?lot=${encodeURIComponent(c.lotDisplayId)}`} className="text-sm font-medium text-foreground hover:underline">
-                    {c.lotDisplayId}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">
-                    <Money centavos={c.paidCents} /> paid of <Money centavos={c.priceCents} />
+            {contracts.map((c) => {
+              const contractPenaltyCents = c.penalties.reduce((sum, p) => sum + p.amountCents, 0);
+              const balanceCents = outstandingBalanceCents({
+                priceCents: c.priceCents,
+                paidCents: c.paidCents,
+                penaltyCents: contractPenaltyCents,
+              });
+              return (
+                <div key={c.id} className="flex flex-col gap-2 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Link
+                        href={`/map?lot=${encodeURIComponent(c.lotDisplayId)}`}
+                        className="text-sm font-medium text-foreground hover:underline"
+                      >
+                        {c.lotDisplayId}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">
+                        <Money centavos={c.paidCents} /> paid of <Money centavos={c.priceCents} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Money centavos={balanceCents} className="text-sm text-muted-foreground" />
+                      <StatusBadge status={c.status} />
+                    </div>
                   </div>
+                  {c.penalties.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-status-defaulted-bg px-3 py-2 text-xs"
+                    >
+                      <span className="text-status-defaulted-fg">
+                        2% penalty · installment #{p.installmentSeq} · <Money centavos={p.amountCents} />
+                      </span>
+                      {canWaivePenalty && <WaivePenaltyButton penaltyId={p.id} />}
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-3">
-                  <Money centavos={c.priceCents - c.paidCents} className="text-sm text-muted-foreground" />
-                  <StatusBadge status={c.status} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { Money } from "@/components/shared/money";
 import { EmptyState } from "@/components/shared/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { monthlyTrend } from "@/lib/domain/revenue-trend";
+import { netPaidCents, outstandingBalanceCents } from "@/lib/domain/status";
 import { getAgentCommissionSummaries } from "@/lib/domain/agent-commissions";
 import { CollectionsTrendChart } from "@/components/collections/collections-trend-chart";
 import { SECTION_LABEL, type SectionCode } from "@/types/domain";
@@ -20,13 +21,14 @@ interface SectionSummary {
 async function getReportsData() {
   const supabase = await createClient();
 
-  const [{ data: txns }, { data: contracts }, { data: lots }, { data: ledger }, { data: payouts }, agents] =
+  const [{ data: txns }, { data: contracts }, { data: lots }, { data: ledger }, { data: payouts }, { data: penaltyRows }, agents] =
     await Promise.all([
-      supabase.from("transactions").select("paid_at, gross_cents, discount_cents, voided").limit(5000),
+      supabase.from("transactions").select("paid_at, type, gross_cents, discount_cents, voided").limit(5000),
       supabase.from("contracts").select("price_cents, status").is("deleted_at", null),
       supabase.from("lots_with_status").select("section, effective_status"),
       supabase.from("commission_ledger").select("agent_id, amount_cents"),
       supabase.from("commission_payouts").select("agent_id, amount_cents"),
+      supabase.from("penalties").select("amount_cents").is("waived_at", null),
       getAgentCommissionSummaries(),
     ]);
 
@@ -34,11 +36,29 @@ async function getReportsData() {
     (txns ?? []).map((t) => ({ paidAt: t.paid_at, netCents: t.gross_cents - t.discount_cents, voided: t.voided }))
   );
 
+  const nonVoidedTxns = (txns ?? []).filter((t) => !t.voided);
+  // "Total collected" is a revenue headline (interment/maintenance fees are
+  // real money in, so they count here unlike in netPaidCents), but a refund
+  // still has to subtract rather than add — this used to sum gross-discount
+  // for every non-voided row with no sign adjustment, so a refund inflated
+  // "collected" instead of reducing it.
+  const totalCollectedCents = nonVoidedTxns.reduce(
+    (sum, t) => sum + (t.type === "refund" ? -(t.gross_cents - t.discount_cents) : t.gross_cents - t.discount_cents),
+    0
+  );
+  // Outstanding balance needs the *lot payoff* amount specifically —
+  // netPaidCents's interment/maintenance exclusion and refund handling —
+  // not the revenue headline above, plus any unwaived penalty on top.
+  const totalAppliedToLotsCents = netPaidCents(
+    nonVoidedTxns.map((t) => ({ type: t.type, grossCents: t.gross_cents, discountCents: t.discount_cents, voided: false }))
+  );
+  const totalPenaltyCents = (penaltyRows ?? []).reduce((sum, p) => sum + p.amount_cents, 0);
   const totalContractValueCents = (contracts ?? []).reduce((sum, c) => sum + c.price_cents, 0);
-  const totalCollectedCents = (txns ?? [])
-    .filter((t) => !t.voided)
-    .reduce((sum, t) => sum + t.gross_cents - t.discount_cents, 0);
-  const outstandingCents = Math.max(0, totalContractValueCents - totalCollectedCents);
+  const outstandingCents = outstandingBalanceCents({
+    priceCents: totalContractValueCents,
+    paidCents: totalAppliedToLotsCents,
+    penaltyCents: totalPenaltyCents,
+  });
   const delinquentCount = (contracts ?? []).filter((c) =>
     ["delinquent", "defaulted"].includes(c.status)
   ).length;

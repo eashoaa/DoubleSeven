@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createLocalClient, createLocalContract, saveReceipt, setContactOverride } from "@/lib/server/local-store";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { logAudit } from "@/lib/server/audit";
+import { can } from "@/lib/permissions";
 
 export interface CreateClientState {
   error: string | null;
@@ -176,4 +178,33 @@ export async function updateClientContactAction(
   );
   revalidatePath("/clients");
   return { error: null, success: true };
+}
+
+/**
+ * The "contact info current" check from the client re-assessment project —
+ * previously tracked nowhere but a chat thread. One-click, same shape as
+ * undoMarkDepositedAction (collections.ts): a status toggle, not a form.
+ */
+export async function verifyClientContactAction(clientId: string) {
+  const user = await getCurrentUser();
+  if (!can(user.role, "editClient")) {
+    throw new Error("Not authorized to verify clients.");
+  }
+
+  const supabase = await createClient();
+  await supabase
+    .from("clients")
+    .update({ verified_at: new Date().toISOString(), verified_by: user.id })
+    .eq("id", clientId);
+
+  await logAudit({
+    action: "client.verified",
+    entityType: "client",
+    entityId: clientId,
+    userId: user.id,
+    summary: "Confirmed contact info is current",
+  });
+
+  revalidatePath("/clients");
+  revalidatePath("/");
 }

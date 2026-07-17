@@ -145,6 +145,8 @@ async function getDevFallbackDashboardData() {
     occupiedLots: contracts.length,
     topOverdue: overdue,
     recentActivity: [] as ActivityRow[],
+    totalClients: clients.length,
+    verifiedClients: 0,
   };
 }
 
@@ -156,7 +158,7 @@ async function getDashboardData() {
   monthStart.setDate(1);
   const monthStartIso = monthStart.toISOString().slice(0, 10);
 
-  const [collected, contracts, lots, overdue, activity] = await Promise.all([
+  const [collected, contracts, lots, overdue, activity, clientVerification] = await Promise.all([
     supabase
       .from("transactions")
       .select("gross_cents, discount_cents")
@@ -175,6 +177,7 @@ async function getDashboardData() {
       .select("id, action, entity_type, ts")
       .order("ts", { ascending: false })
       .limit(5),
+    supabase.from("clients").select("verified_at").is("deleted_at", null),
   ]);
 
   const collectedThisMonthCentavos = (collected.data ?? []).reduce(
@@ -212,6 +215,9 @@ async function getDashboardData() {
     ts: row.ts,
   }));
 
+  const totalClients = (clientVerification.data ?? []).length;
+  const verifiedClients = (clientVerification.data ?? []).filter((c) => c.verified_at).length;
+
   return {
     collectedThisMonthCentavos,
     activeClients: activeClientIds.size,
@@ -219,6 +225,8 @@ async function getDashboardData() {
     occupiedLots,
     topOverdue,
     recentActivity,
+    totalClients,
+    verifiedClients,
   };
 }
 
@@ -323,6 +331,26 @@ export default async function DashboardPage() {
       <Greeting firstName={firstName} />
 
       <QuickActions />
+
+      {(user.role === "admin" || user.role === "marketing") && stats.totalClients > 0 && (
+        <Link
+          href="/clients?filter=unverified"
+          className="shadow-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-hairline bg-card p-5 transition-colors hover:bg-accent/40"
+        >
+          <div>
+            <div className="text-sm font-semibold text-foreground">Client database: team progress</div>
+            <div className="text-sm text-muted-foreground">
+              {stats.verifiedClients} / {stats.totalClients} clients have current contact info confirmed
+            </div>
+          </div>
+          <div className="h-2 w-full max-w-40 overflow-hidden rounded-full bg-accent">
+            <div
+              className="h-full rounded-full bg-status-active-map"
+              style={{ width: `${Math.round((stats.verifiedClients / stats.totalClients) * 100)}%` }}
+            />
+          </div>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

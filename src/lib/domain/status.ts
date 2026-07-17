@@ -30,6 +30,20 @@ export function netPaidCents(transactions: StatusTransaction[]): number {
   return total;
 }
 
+/**
+ * The single "what does this contract still owe" formula. Price minus what's
+ * been applied, plus any unwaived penalties — penalties are an additional
+ * charge on top of the contract price, not a reduction of it, so they add
+ * rather than fold into netPaidCents.
+ */
+export function outstandingBalanceCents(input: {
+  priceCents: number;
+  paidCents: number;
+  penaltyCents?: number;
+}): number {
+  return Math.max(0, input.priceCents - input.paidCents) + (input.penaltyCents ?? 0);
+}
+
 function startOfDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }

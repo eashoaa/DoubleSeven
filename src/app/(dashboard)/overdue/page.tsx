@@ -84,7 +84,12 @@ export default async function OverduePage() {
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">{c.overdueDays ?? 0}d</TableCell>
                   <TableCell className="text-right">
-                    <Money centavos={c.priceCents - c.paidCents} />
+                    <Money centavos={c.balanceCents} />
+                    {c.penaltyCents > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        incl. <Money centavos={c.penaltyCents} /> penalty
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -101,7 +106,7 @@ export default async function OverduePage() {
                         clientName={c.clientName}
                         lotDisplayId={c.lotDisplayId}
                         overdueDays={c.overdueDays ?? 0}
-                        amountDue={`${(c.priceCents - c.paidCents) / 100}`}
+                        amountDue={`${c.balanceCents / 100}`}
                         templates={templates}
                       />
                     </div>

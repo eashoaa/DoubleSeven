@@ -1,6 +1,7 @@
 import {
   daysOverdueOnNextUnpaidInstallment,
   netPaidCents,
+  outstandingBalanceCents,
   type StatusInstallment,
   type StatusTransaction,
 } from "./status";
@@ -36,6 +37,8 @@ export interface AgingContract {
   priceCents: number;
   transactions: StatusTransaction[];
   installments: StatusInstallment[];
+  /** Sum of unwaived penalties.amount_cents for this contract, if any. */
+  penaltyCents?: number;
 }
 
 export interface AgingRow {
@@ -61,7 +64,11 @@ export function buildAgingReport(
 
   for (const c of contracts) {
     const paidCents = netPaidCents(c.transactions);
-    const balanceCents = Math.max(0, c.priceCents - paidCents);
+    const balanceCents = outstandingBalanceCents({
+      priceCents: c.priceCents,
+      paidCents,
+      penaltyCents: c.penaltyCents,
+    });
     if (balanceCents <= 0) continue;
 
     const days = daysOverdueOnNextUnpaidInstallment(c.installments, paidCents, today);

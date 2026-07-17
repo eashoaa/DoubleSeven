@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getOverdueContractsMerged } from "@/lib/domain/dev-masterlist";
 import { buildAgingReport, type AgingContract } from "@/lib/domain/aging";
+import { netPaidCents, outstandingBalanceCents } from "@/lib/domain/status";
 import type { LotStatus } from "@/types/domain";
 
 export interface OverdueRow {
@@ -11,6 +12,8 @@ export interface OverdueRow {
   status: LotStatus;
   priceCents: number;
   paidCents: number;
+  penaltyCents: number;
+  balanceCents: number;
   overdueDays: number;
 }
 
@@ -33,13 +36,23 @@ async function getOverdueContractsReal(): Promise<OverdueRow[]> {
   if (!data || data.length === 0) return [];
 
   const contractIds = data.map((c) => c.id);
-  const [{ data: installmentRows }, { data: transactionRows }] = await Promise.all([
+  const [{ data: installmentRows }, { data: transactionRows }, { data: penaltyRows }] = await Promise.all([
     supabase.from("installments").select("contract_id, seq, due_date, due_cents").in("contract_id", contractIds),
     supabase
       .from("transactions")
       .select("contract_id, type, gross_cents, discount_cents, voided")
       .in("contract_id", contractIds),
+    supabase
+      .from("penalties")
+      .select("contract_id, amount_cents")
+      .in("contract_id", contractIds)
+      .is("waived_at", null),
   ]);
+
+  const penaltyCentsByContract = new Map<string, number>();
+  for (const row of penaltyRows ?? []) {
+    penaltyCentsByContract.set(row.contract_id, (penaltyCentsByContract.get(row.contract_id) ?? 0) + row.amount_cents);
+  }
 
   const installmentsByContract = new Map<string, AgingContract["installments"]>();
   for (const row of installmentRows ?? []) {
@@ -63,30 +76,33 @@ async function getOverdueContractsReal(): Promise<OverdueRow[]> {
     priceCents: c.price_cents,
     transactions: transactionsByContract.get(c.id) ?? [],
     installments: installmentsByContract.get(c.id) ?? [],
+    penaltyCents: penaltyCentsByContract.get(c.id) ?? 0,
   }));
   const aging = buildAgingReport(agingInput);
   const agingById = new Map(aging.map((a) => [a.contractId, a]));
 
-  return data
-    .map((c) => {
-      const agingRow = agingById.get(c.id);
-      if (!agingRow) return null;
-      const client = c.clients as unknown as { name: string } | null;
-      const lot = c.lots as unknown as { display_id: string } | null;
-      const paidCents = c.price_cents - agingRow.balanceCents;
-      return {
-        id: c.id,
-        lotId: c.lot_id,
-        clientName: client?.name ?? "Unknown client",
-        lotDisplayId: lot?.display_id ?? "-",
-        status: c.status,
-        priceCents: c.price_cents,
-        paidCents,
-        overdueDays: agingRow.daysOverdue,
-      };
-    })
-    .filter((r): r is OverdueRow => r !== null)
-    .sort((a, b) => b.overdueDays - a.overdueDays);
+  const rows: OverdueRow[] = [];
+  for (const c of data) {
+    const agingRow = agingById.get(c.id);
+    if (!agingRow) continue;
+    const client = c.clients as unknown as { name: string } | null;
+    const lot = c.lots as unknown as { display_id: string } | null;
+    const paidCents = netPaidCents(transactionsByContract.get(c.id) ?? []);
+    const penaltyCents = penaltyCentsByContract.get(c.id) ?? 0;
+    rows.push({
+      id: c.id,
+      lotId: c.lot_id,
+      clientName: client?.name ?? "Unknown client",
+      lotDisplayId: lot?.display_id ?? "-",
+      status: c.status,
+      priceCents: c.price_cents,
+      paidCents,
+      penaltyCents,
+      balanceCents: outstandingBalanceCents({ priceCents: c.price_cents, paidCents, penaltyCents }),
+      overdueDays: agingRow.daysOverdue,
+    });
+  }
+  return rows.sort((a, b) => b.overdueDays - a.overdueDays);
 }
 
 export async function getOverdueRows(): Promise<OverdueRow[]> {
@@ -100,6 +116,8 @@ export async function getOverdueRows(): Promise<OverdueRow[]> {
       status: c.status,
       priceCents: c.priceCents,
       paidCents: c.paidCents,
+      penaltyCents: 0,
+      balanceCents: outstandingBalanceCents({ priceCents: c.priceCents, paidCents: c.paidCents }),
       overdueDays: c.overdueDays ?? 0,
     }));
   }

@@ -1,4 +1,5 @@
 import { Users } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table,
@@ -17,8 +18,10 @@ import { PageSearchInput } from "@/components/shared/page-search-input";
 import { PageHeader } from "@/components/layout/page-header";
 import { EditContactDialog } from "@/components/clients/edit-contact-dialog";
 import { AssignAgentDialog } from "@/components/clients/assign-agent-dialog";
+import { VerifyClientButton } from "@/components/clients/verify-client-button";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { can } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 
 interface ClientRow {
   id: string;
@@ -28,6 +31,7 @@ interface ClientRow {
   since: string;
   contractCount: number;
   agentName: string | null;
+  verifiedAt: string | null;
 }
 
 async function getClients(): Promise<ClientRow[]> {
@@ -46,8 +50,14 @@ async function getClients(): Promise<ClientRow[]> {
         ...c,
         contractCount: c.contractCount + (localContractCountByClient.get(c.id) ?? 0),
         agentName: null,
+        verifiedAt: null,
       })),
-      ...local.map((c) => ({ ...c, contractCount: localContractCountByClient.get(c.id) ?? 0, agentName: null })),
+      ...local.map((c) => ({
+        ...c,
+        contractCount: localContractCountByClient.get(c.id) ?? 0,
+        agentName: null,
+        verifiedAt: null,
+      })),
     ];
 
     return merged
@@ -64,7 +74,7 @@ async function getClients(): Promise<ClientRow[]> {
 
   const supabase = await createClient();
   const [{ data: clients }, { data: contracts }] = await Promise.all([
-    supabase.from("clients").select("id, name, contact, email, since").is("deleted_at", null).order("name"),
+    supabase.from("clients").select("id, name, contact, email, since, verified_at").is("deleted_at", null).order("name"),
     supabase.from("contracts").select("client_id, agent_id, agents(name)").is("deleted_at", null),
   ]);
 
@@ -82,19 +92,28 @@ async function getClients(): Promise<ClientRow[]> {
     ...c,
     contractCount: contractCountByClient.get(c.id) ?? 0,
     agentName: agentNameByClient.get(c.id) ?? null,
+    verifiedAt: c.verified_at,
   }));
 }
+
+const VERIFY_FILTERS = [
+  { value: undefined, label: "All" },
+  { value: "verified", label: "Verified" },
+  { value: "unverified", label: "Needs verification" },
+] as const;
 
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; filter?: string }>;
 }) {
-  const [{ q }, clients, user] = await Promise.all([searchParams, getClients(), getCurrentUser()]);
+  const [{ q, filter }, clients, user] = await Promise.all([searchParams, getClients(), getCurrentUser()]);
   const canAssignAgent = can(user.role, "manageAgents");
-  const filtered = q
-    ? clients.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
-    : clients;
+  const canVerify = can(user.role, "editClient");
+  let filtered = q ? clients.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : clients;
+  if (filter === "verified") filtered = filtered.filter((c) => c.verifiedAt);
+  if (filter === "unverified") filtered = filtered.filter((c) => !c.verifiedAt);
+  const verifiedCount = clients.filter((c) => c.verifiedAt).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,6 +121,28 @@ export default async function ClientsPage({
         <PageHeader titleKey="page.clients.title" descriptionKey="page.clients.desc" />
         <PageSearchInput basePath="/clients" defaultValue={q ?? ""} placeholder="Filter by name…" />
       </div>
+
+      {canVerify && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex w-fit flex-wrap rounded-full border border-hairline bg-white/70 p-1 text-sm">
+            {VERIFY_FILTERS.map((opt) => (
+              <Link
+                key={opt.label}
+                href={opt.value ? `/clients?filter=${opt.value}` : "/clients"}
+                className={cn(
+                  "relative rounded-full px-3.5 py-1.5 font-medium text-muted-foreground transition-colors duration-200",
+                  (filter ?? undefined) === opt.value && "bg-primary text-primary-foreground"
+                )}
+              >
+                {opt.label}
+              </Link>
+            ))}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {verifiedCount} / {clients.length} verified
+          </span>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -133,6 +174,11 @@ export default async function ClientsPage({
                 <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   Contracts
                 </TableHead>
+                {canVerify && (
+                  <TableHead className="text-right text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Verified
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,6 +214,11 @@ export default async function ClientsPage({
                   <TableCell className="text-right text-muted-foreground">
                     {client.contractCount}
                   </TableCell>
+                  {canVerify && (
+                    <TableCell className="text-right">
+                      <VerifyClientButton clientId={client.id} verifiedAt={client.verifiedAt} />
+                    </TableCell>
+                  )}
                 </ClickableRow>
               ))}
             </TableBody>

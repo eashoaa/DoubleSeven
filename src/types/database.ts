@@ -107,6 +107,8 @@ export interface Database {
           since: string;
           notes: string | null;
           created_by: string | null;
+          verified_at: string | null;
+          verified_by: string | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
@@ -312,6 +314,45 @@ export interface Database {
         };
         Insert: Partial<Database["public"]["Tables"]["requisition_settings"]["Row"]>;
         Update: Partial<Database["public"]["Tables"]["requisition_settings"]["Row"]>;
+        Relationships: [];
+      };
+      resources: {
+        Row: {
+          id: string;
+          name: string;
+          category: "brand" | "policy" | "other";
+          file_path: string;
+          uploaded_by: string;
+          uploaded_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["resources"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["resources"]["Row"]>;
+        Relationships: [];
+      };
+      penalties: {
+        Row: {
+          id: string;
+          contract_id: string;
+          installment_seq: number;
+          amount_cents: number;
+          charged_at: string;
+          waived_at: string | null;
+          waived_by: string | null;
+          waived_reason: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["penalties"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["penalties"]["Row"]>;
+        Relationships: [];
+      };
+      penalty_settings: {
+        Row: {
+          id: boolean;
+          rate_percent: number;
+          grace_period_days: number;
+        };
+        Insert: Partial<Database["public"]["Tables"]["penalty_settings"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["penalty_settings"]["Row"]>;
         Relationships: [];
       };
       reminder_settings: {
