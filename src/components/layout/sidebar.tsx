@@ -4,8 +4,8 @@ import { useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { hasNav, type Role, type NavId } from "@/lib/permissions";
-import { NAV_ITEMS } from "./nav-items";
+import type { Role, NavId } from "@/lib/permissions";
+import { getVisibleNavItems } from "./nav-items";
 import { NewClientDialog } from "@/components/clients/new-client-dialog";
 import { NavItemRow } from "./nav-item";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -28,10 +28,7 @@ export function Sidebar({
   role: Role;
   badgeCounts?: Partial<Record<NavId, number>>;
 }) {
-  const items = NAV_ITEMS.filter((item) => hasNav(role, item.id)).map((item) => ({
-    ...item,
-    children: item.children?.filter((child) => hasNav(role, child.id)),
-  }));
+  const items = getVisibleNavItems(role);
   const containerRef = useRef<HTMLElement>(null);
   const collapsed = useSidebarCollapsed();
   const { lang } = useLanguage();
@@ -119,7 +116,7 @@ export function Sidebar({
 
       <nav className="flex flex-col gap-1">
         {items.map((item) => (
-          <NavItemRow key={item.id} item={item} collapsed={collapsed} badgeCount={badgeCounts[item.id]} />
+          <NavItemRow key={item.id} item={item} collapsed={collapsed} badgeCounts={badgeCounts} />
         ))}
       </nav>
     </aside>

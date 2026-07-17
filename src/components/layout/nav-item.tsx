@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SplitLetters } from "./split-letters";
 import { useLanguage } from "@/lib/i18n/language-context";
+import type { NavId } from "@/lib/permissions";
 import type { NavItem as NavItemType } from "./nav-items";
 
 gsap.registerPlugin(useGSAP);
@@ -18,17 +19,34 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
+function BadgePill({ count, className }: { count: number; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex size-4.5 shrink-0 items-center justify-center rounded-full bg-status-defaulted-map text-[10px] font-bold text-white",
+        className
+      )}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
 function RowContent({
   item,
   active,
   label,
   badgeCount,
+  iconBadgeCount,
   collapsed,
 }: {
   item: NavItemType;
   active: boolean;
   label: string;
+  /** Shown as a pill next to the label when expanded (the item's own count). */
   badgeCount?: number;
+  /** Shown as a small dot on the icon when collapsed — includes any hidden children's counts. */
+  iconBadgeCount?: number;
   collapsed: boolean;
 }) {
   const Icon = item.icon;
@@ -36,21 +54,15 @@ function RowContent({
     <>
       <span className="relative shrink-0">
         <Icon className="size-4.5" strokeWidth={2} />
-        {collapsed && !!badgeCount && (
-          <span className="absolute -top-1.5 -right-1.5 flex size-3.5 items-center justify-center rounded-full bg-status-defaulted-map text-[8px] font-bold text-white">
-            {badgeCount > 9 ? "9+" : badgeCount}
-          </span>
+        {collapsed && !!iconBadgeCount && (
+          <BadgePill count={iconBadgeCount} className="absolute -top-1.5 -right-1.5 size-3.5 text-[8px]" />
         )}
       </span>
       <span className="sidebar-label flex flex-1 items-center overflow-hidden">
         <span className="overflow-hidden whitespace-nowrap">
           <SplitLetters text={label} />
         </span>
-        {!collapsed && !!badgeCount && (
-          <span className="ml-auto flex size-4.5 shrink-0 items-center justify-center rounded-full bg-status-defaulted-map text-[10px] font-bold text-white">
-            {badgeCount > 9 ? "9+" : badgeCount}
-          </span>
-        )}
+        {!collapsed && !!badgeCount && <BadgePill count={badgeCount} className="ml-auto" />}
       </span>
       {active && <span className="sr-only">(current)</span>}
     </>
@@ -60,11 +72,11 @@ function RowContent({
 export function NavItemRow({
   item,
   collapsed,
-  badgeCount,
+  badgeCounts = {},
 }: {
   item: NavItemType;
   collapsed: boolean;
-  badgeCount?: number;
+  badgeCounts?: Partial<Record<NavId, number>>;
 }) {
   const { t } = useLanguage();
   const label = t(item.labelKey);
@@ -72,7 +84,10 @@ export function NavItemRow({
   const active = isActive(pathname, item.href);
   const hasChildren = !!item.children?.length;
   const childActive = item.children?.some((c) => isActive(pathname, c.href)) ?? false;
-  const [expanded, setExpanded] = useState(active || childActive);
+  const ownBadgeCount = badgeCounts[item.id];
+  const childBadgeSum = item.children?.reduce((sum, c) => sum + (badgeCounts[c.id] ?? 0), 0) ?? 0;
+  const iconBadgeCount = (ownBadgeCount ?? 0) + childBadgeSum || undefined;
+  const [expanded, setExpanded] = useState(active || childActive || childBadgeSum > 0);
   const subRef = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
 
@@ -114,7 +129,14 @@ export function NavItemRow({
         active && "bg-white text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.06)] hover:bg-white"
       )}
     >
-      <RowContent item={item} active={active} label={label} badgeCount={badgeCount} collapsed={collapsed} />
+      <RowContent
+        item={item}
+        active={active}
+        label={label}
+        badgeCount={ownBadgeCount}
+        iconBadgeCount={iconBadgeCount}
+        collapsed={collapsed}
+      />
       {hasChildren && (
         <ChevronDown
           className={cn(
@@ -144,6 +166,7 @@ export function NavItemRow({
             {item.children!.map((child) => {
               const childActiveNow = isActive(pathname, child.href);
               const ChildIcon = child.icon;
+              const childBadgeCount = badgeCounts[child.id];
               return (
                 <Link
                   key={child.id}
@@ -156,6 +179,7 @@ export function NavItemRow({
                 >
                   <ChildIcon className="size-4 shrink-0" strokeWidth={2} />
                   <span className="whitespace-nowrap">{t(child.labelKey)}</span>
+                  {!!childBadgeCount && <BadgePill count={childBadgeCount} className="ml-auto" />}
                 </Link>
               );
             })}
