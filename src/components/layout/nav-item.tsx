@@ -42,10 +42,12 @@ function RowContent({
           </span>
         )}
       </span>
-      <span className="sidebar-label flex flex-1 items-center justify-between gap-2 overflow-hidden whitespace-nowrap">
-        <SplitLetters text={label} />
+      <span className="sidebar-label flex flex-1 items-center overflow-hidden">
+        <span className="overflow-hidden whitespace-nowrap">
+          <SplitLetters text={label} />
+        </span>
         {!collapsed && !!badgeCount && (
-          <span className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-status-defaulted-map text-[10px] font-bold text-white">
+          <span className="ml-auto flex size-4.5 shrink-0 items-center justify-center rounded-full bg-status-defaulted-map text-[10px] font-bold text-white">
             {badgeCount > 9 ? "9+" : badgeCount}
           </span>
         )}
