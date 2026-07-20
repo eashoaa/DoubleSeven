@@ -1,4 +1,4 @@
-import { Users } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
@@ -179,12 +179,15 @@ export default async function ClientsPage({
                     Verified
                   </TableHead>
                 )}
+                <TableHead className="w-8" aria-hidden />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((client) => (
                 <ClickableRow key={client.id} href={`/clients/${client.id}`}>
-                  <TableCell className="font-medium text-foreground">{client.name}</TableCell>
+                  <TableCell className="font-medium text-foreground underline decoration-transparent underline-offset-4 transition-colors group-hover:text-primary group-hover:decoration-primary/40">
+                    {client.name}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <span>{client.contact ?? client.email ?? "-"}</span>
@@ -219,6 +222,9 @@ export default async function ClientsPage({
                       <VerifyClientButton clientId={client.id} verifiedAt={client.verifiedAt} />
                     </TableCell>
                   )}
+                  <TableCell className="pl-0">
+                    <ChevronRight className="size-4 text-muted-foreground/50 transition-colors group-hover:text-primary" />
+                  </TableCell>
                 </ClickableRow>
               ))}
             </TableBody>

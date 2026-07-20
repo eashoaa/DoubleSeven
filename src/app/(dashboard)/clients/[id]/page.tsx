@@ -292,7 +292,13 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <p className="text-sm text-muted-foreground">Not on file.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {pdfs.map((filename) => (
+            {/* The per-contract contractIdsWithFiles mechanism is now the
+                complete, authoritative source for every contract's scan —
+                only fall back to the legacy name-keyed contract-pdfs.json
+                map (a small early pilot batch) when a client has no
+                per-contract file at all, so the two don't double-render
+                the same PDF as two separate buttons. */}
+            {(contractIdsWithFiles.length > 0 ? [] : pdfs).map((filename) => (
               <Link
                 key={filename}
                 href={`/api/contracts/${encodeURIComponent(filename)}`}
