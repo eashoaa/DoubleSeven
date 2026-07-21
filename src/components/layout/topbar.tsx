@@ -18,6 +18,7 @@ const dateFmt = new Intl.DateTimeFormat("en-PH", {
   month: "long",
   day: "numeric",
   year: "numeric",
+  timeZone: "Asia/Manila",
 });
 
 export function Topbar({

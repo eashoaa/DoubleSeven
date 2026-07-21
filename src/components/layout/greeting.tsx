@@ -8,6 +8,12 @@ import type { LangKey } from "@/lib/i18n/dictionary";
 
 gsap.registerPlugin(useGSAP);
 
+const manilaHourFmt = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  hourCycle: "h23",
+  timeZone: "Asia/Manila",
+});
+
 function timeOfDayGreetingKey(hour: number): LangKey {
   if (hour < 12) return "greeting.morning";
   if (hour < 18) return "greeting.afternoon";
@@ -16,7 +22,12 @@ function timeOfDayGreetingKey(hour: number): LangKey {
 
 export function Greeting({ firstName }: { firstName: string }) {
   const { t } = useLanguage();
-  const greeting = t(timeOfDayGreetingKey(new Date().getHours()));
+  // Pinned to the business's real timezone (Asia/Manila) rather than
+  // whatever timezone the rendering machine happens to be in — Vercel's
+  // servers run in UTC, so `new Date().getHours()` would give a different
+  // hour on the server than in a Philippines-based browser, causing a
+  // hydration mismatch (and, worse, the wrong greeting for local staff).
+  const greeting = t(timeOfDayGreetingKey(Number(manilaHourFmt.format(new Date()))));
   const ref = useRef<HTMLHeadingElement>(null);
 
   useGSAP(
